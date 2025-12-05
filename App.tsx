@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal } from './components/Modals';
@@ -9,11 +9,9 @@ import { supabase, DB_SCHEMA } from './supabaseClient';
 // ------------------------------------------------------------------
 // CONFIGURAÇÃO N8N (AÇÕES)
 // ------------------------------------------------------------------
-// URLs atualizadas conforme ambiente Easypanel
 const N8N_WEBHOOK_SAVE = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Cadastro_de_Manifestos';
 const N8N_WEBHOOK_EDIT = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Cadastro_de_Manifestos';
-const N8N_WEBHOOK_CANCEL = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Cadastro_de_Manifestos'; // Usado para Cancelar e Anular
-// O Logout usa o mesmo fluxo de validação de credenciais, mas com action='logoff'
+const N8N_WEBHOOK_CANCEL = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Cadastro_de_Manifestos';
 const N8N_WEBHOOK_LOGOUT = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Validar_Credenciais';
 // ------------------------------------------------------------------
 
@@ -25,6 +23,14 @@ function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [manifestos, setManifestos] = useState<Manifesto[]>([]);
   
+  // Ref para guardar o usuário atual sem causar re-renders no listener de eventos
+  const currentUserRef = useRef<User | null>(null);
+  
+  // Atualiza a ref sempre que o state mudar
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+  
   // Modal States
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
@@ -33,7 +39,6 @@ function App() {
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
 
-  // Função auxiliar para gerar timestamp SQL
   const getCurrentTimestampSQL = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -45,7 +50,6 @@ function App() {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   };
 
-  // Helper function to generate next ID
   const generateNextId = (currentList: Manifesto[]) => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2); 
@@ -73,7 +77,6 @@ function App() {
      setTimeout(() => setAlert(null), 4000);
   };
 
-  // Helper para mapear linha do banco para o tipo Manifesto
   const mapDatabaseRowToManifesto = (item: SMO_Sistema_DB): Manifesto => ({
     id: item.ID_Manifesto,
     usuario: item.Usuario_Sistema,
@@ -86,8 +89,6 @@ function App() {
     turno: item.Turno,
     carimboDataHR: item["Carimbo_Data/HR"],
     usuarioOperacao: item["Usuario_Operação"],
-    
-    // Mapeamento das colunas de datas específicas
     dataHoraIniciado: item.Manifesto_Iniciado,
     dataHoraDisponivel: item.Manifesto_Disponivel,
     dataHoraConferencia: item["Manifesto_em_Conferência"],
@@ -97,7 +98,6 @@ function App() {
 
   const fetchManifestos = useCallback(async () => {
     try {
-      // LEITURA CONTINUA VIA SUPABASE DIRETO (MAIS RÁPIDO QUE N8N PARA LISTAGEM)
       const { data, error } = await supabase
         .from('SMO_Sistema')
         .select('*')
@@ -121,14 +121,13 @@ function App() {
 
     fetchManifestos();
 
-    // Canal único para dados operacionais
     const channel = supabase
       .channel('manifestos-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
-          schema: DB_SCHEMA, // IMPORTANTE: Schema correto
+          schema: DB_SCHEMA,
           table: 'SMO_Sistema',
         },
         (payload) => {
@@ -159,89 +158,85 @@ function App() {
   }, [isLoggedIn, fetchManifestos]);
 
   // ************************************************************************************************
-  // 🚨 🚨 🚨 LÓGICA DE SEGURANÇA CRÍTICA - "OUVIDO NA PAREDE" (SESSION KICK) 🚨 🚨 🚨
+  // 🚨 SISTEMA DE SEGURANÇA HÍBRIDO (EVENT-DRIVEN + REALTIME) 🚨
   // ************************************************************************************************
+  
+  // Função que verifica o banco DE VERDADE (HTTP request, não websocket)
+  const verifySessionIntegrity = async () => {
+     const user = currentUserRef.current;
+     if (!user) return;
+
+     // console.log("🔍 Verificando integridade da sessão (Trigger por Interação)...");
+
+     const { data, error } = await supabase
+       .from('Cadastro_de_Perfil')
+       .select('sesson_id')
+       .eq('id', user.id)
+       .single();
+
+     if (error) {
+       // Se der erro de rede, não derruba imediatamente para não ser chato,
+       // mas loga o erro.
+       console.error("⚠️ Erro ao verificar sessão:", error.message);
+       return;
+     }
+
+     if (data && data.sesson_id !== user.sesson_id) {
+        console.error("⛔ SESSÃO DUPLICADA DETECTADA. DESCONECTANDO.");
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+        setManifestos([]);
+        // Usando window.alert pois bloqueia a thread e força atenção
+        window.alert("Sua conta foi conectada em outro dispositivo. Você foi desconectado.");
+     }
+  };
+
   useEffect(() => {
     if (!isLoggedIn || !currentUser) return;
 
-    console.log(`🔒 Iniciando monitoramento de sessão para User ID: ${currentUser.id}`);
-
-    // 1. CHECAGEM INICIAL (Check-on-mount)
-    // Garante que, se o usuário der F5 ou entrar com token velho, ele cai na hora.
-    const checkCurrentSession = async () => {
-       const { data, error } = await supabase
-         .from('Cadastro_de_Perfil')
-         .select('sesson_id')
-         .eq('id', currentUser.id)
-         .single();
-
-       if (error) {
-         console.error("Erro ao verificar sessão inicial:", error);
-         return; 
-       }
-
-       if (data && data.sesson_id !== currentUser.sesson_id) {
-          console.warn("⛔ SESSÃO INVÁLIDA DETECTADA AO INICIAR.");
-          setIsLoggedIn(false);
-          setCurrentUser(null);
-          setManifestos([]);
-          window.alert("Sua sessão expirou ou foi aberta em outro local.");
-       } else {
-          console.log("✅ Sessão inicial verificada e válida.");
-       }
-    };
-
-    checkCurrentSession();
-
-    // 2. MONITORAMENTO REALTIME (Plano A - SEM FILTRO DE SERVIDOR)
-    // Em schemas personalizados self-hosted, filtros server-side podem falhar.
-    // Solução: Receber tudo da tabela e filtrar no cliente.
+    // 1. REALTIME (Plano A - Rápido, mas pode falhar em Self-Hosted)
     const sessionChannel = supabase
-      .channel(`security-session-global`)
+      .channel(`security-check-${currentUser.id}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: DB_SCHEMA, 
           table: 'Cadastro_de_Perfil',
-          // REMOVIDO: filter: `id=eq.${currentUser.id}`, 
-          // Motivo: Filtros server-side falham em custom schemas no self-hosted.
         },
         (payload) => {
           const newData = payload.new as any;
-          
-          // FILTRAGEM CLIENT-SIDE:
-          // Só nos importamos se a atualização for para o NOSSO usuário
           if (String(newData.id) === String(currentUser.id)) {
-             console.log("⚡ UPDATE recebido para meu usuário!", newData);
-             
-             const remoteSessionId = newData.sesson_id;
-             const localSessionId = currentUser.sesson_id;
-
-             // Se o ID da sessão no banco é diferente do meu local
-             if (remoteSessionId && remoteSessionId !== localSessionId) {
-                console.warn("⛔ SESSÃO DERRUBADA: Login detectado em outro local.");
-                
-                // Desconecta imediatamente
+             if (newData.sesson_id !== currentUser.sesson_id) {
+                console.warn("⚡ Realtime detectou quebra de sessão.");
                 setIsLoggedIn(false);
                 setCurrentUser(null);
                 setManifestos([]);
-                window.alert("Sua conta foi conectada em outro dispositivo. Desconectando...");
+                window.alert("Sua conta foi conectada em outro dispositivo.");
              }
           }
         }
       )
-      .subscribe((status, err) => {
-          if (status === 'SUBSCRIBED') {
-             console.log("✅ Monitoramento de Segurança ATIVO (Modo Global).");
-          } else if (status === 'CHANNEL_ERROR') {
-             console.error("❌ FALHA CRÍTICA: Não foi possível conectar ao canal de segurança.", err);
-          }
-      });
+      .subscribe();
+
+    // 2. CHECK POR INTERAÇÃO (Plano B - "Sentinela")
+    // Verifica a sessão sempre que o usuário "toca" no sistema (foco, clique).
+    // Isso NÃO É UM TIMER. Só roda se o usuário estiver ativo.
+    
+    const handleInteraction = () => verifySessionIntegrity();
+
+    window.addEventListener('focus', handleInteraction); // Quando volta pra aba
+    window.addEventListener('click', handleInteraction); // Quando clica em qualquer lugar
+    document.addEventListener('visibilitychange', handleInteraction); // Quando muda de aba
+
+    // Check inicial ao montar
+    verifySessionIntegrity();
 
     return () => {
-      console.log("🔓 Parando monitoramento de sessão.");
       supabase.removeChannel(sessionChannel);
+      window.removeEventListener('focus', handleInteraction);
+      window.removeEventListener('click', handleInteraction);
+      document.removeEventListener('visibilitychange', handleInteraction);
     };
   }, [isLoggedIn, currentUser]); 
 
@@ -257,7 +252,6 @@ function App() {
     if (currentUser) {
       try {
         if (N8N_WEBHOOK_LOGOUT) {
-           // Envia senha para satisfazer a query do n8n
            await fetch(N8N_WEBHOOK_LOGOUT, {
              method: 'POST',
              headers: {'Content-Type': 'application/json'},
@@ -271,7 +265,7 @@ function App() {
            });
         }
       } catch (error) {
-         console.error("Erro ao solicitar logoff ao servidor:", error);
+         console.error("Erro ao solicitar logoff:", error);
       } finally {
         setTimeout(() => {
           setIsLoggedIn(false);
@@ -289,6 +283,10 @@ function App() {
   };
 
   const handleSaveNew = async (data: Omit<Manifesto, 'id' | 'status' | 'turno'>) => {
+    // Check de segurança antes de salvar
+    await verifySessionIntegrity();
+    if (!currentUserRef.current) return; // Se caiu a sessão, para tudo
+
     setLoadingMsg("Enviando para o n8n...");
     try {
       const nextId = generateNextId(manifestos);
@@ -333,6 +331,9 @@ function App() {
   };
 
   const handleEditSave = async (partialData: Partial<Manifesto> & { id: string, usuario: string, justificativa: string }) => {
+    await verifySessionIntegrity();
+    if (!currentUserRef.current) return;
+
     setLoadingMsg("Enviando edição ao n8n...");
     try {
       const response = await fetch(N8N_WEBHOOK_EDIT, {
@@ -369,6 +370,9 @@ function App() {
   };
 
   const handleConfirmCancellation = async (justificativa: string) => {
+      await verifySessionIntegrity();
+      if (!currentUserRef.current) return;
+
       if (!cancellationId) return;
       const id = cancellationId;
       setCancellationId(null);
@@ -399,6 +403,9 @@ function App() {
   };
 
   const handleConfirmAnular = async (justificativa: string) => {
+      await verifySessionIntegrity();
+      if (!currentUserRef.current) return;
+
       if (!anularId) return;
       const id = anularId;
       setAnularId(null);
