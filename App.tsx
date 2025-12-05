@@ -211,6 +211,7 @@ function App() {
              body: JSON.stringify({ 
                 action: 'logoff', // Aciona o switch 'logoff' no n8n
                 usuario: currentUser.Usuario,
+                senha: currentUser.Senha, // Necessário pois o node "Consultar os Dados1" no n8n filtra por Usuario e Senha
                 id: currentUser.id,
                 sesson_id: currentUser.sesson_id
              })
