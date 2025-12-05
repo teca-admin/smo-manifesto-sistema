@@ -177,7 +177,7 @@ function App() {
 
        if (error) {
          console.error("Erro ao verificar sessão inicial:", error);
-         return; // Falha silenciosa, deixa o realtime assumir
+         return; 
        }
 
        if (data && data.sesson_id !== currentUser.sesson_id) {
@@ -193,40 +193,47 @@ function App() {
 
     checkCurrentSession();
 
-    // 2. MONITORAMENTO REALTIME (Plano A)
+    // 2. MONITORAMENTO REALTIME (Plano A - SEM FILTRO DE SERVIDOR)
+    // Em schemas personalizados self-hosted, filtros server-side podem falhar.
+    // Solução: Receber tudo da tabela e filtrar no cliente.
     const sessionChannel = supabase
-      .channel(`security-session-${currentUser.id}`)
+      .channel(`security-session-global`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: DB_SCHEMA, 
           table: 'Cadastro_de_Perfil',
-          filter: `id=eq.${currentUser.id}`, // Filtra apenas alterações no meu usuário
+          // REMOVIDO: filter: `id=eq.${currentUser.id}`, 
+          // Motivo: Filtros server-side falham em custom schemas no self-hosted.
         },
         (payload) => {
-          const newData = payload.new as any; 
-          const remoteSessionId = newData.sesson_id;
-          const localSessionId = currentUser.sesson_id;
-
-          console.log("🔒 Evento de Sessão Recebido:", { remote: remoteSessionId, local: localSessionId });
-
-          // Se o ID da sessão no banco é diferente do meu local (e não é null/logoff)
-          if (remoteSessionId && remoteSessionId !== localSessionId) {
-             console.warn("⛔ SESSÃO DERRUBADA: Login detectado em outro local.");
-             // showAlert('error', "Sua conta foi conectada em outro dispositivo. Desconectando...");
+          const newData = payload.new as any;
+          
+          // FILTRAGEM CLIENT-SIDE:
+          // Só nos importamos se a atualização for para o NOSSO usuário
+          if (String(newData.id) === String(currentUser.id)) {
+             console.log("⚡ UPDATE recebido para meu usuário!", newData);
              
-             // Desconecta imediatamente
-             setIsLoggedIn(false);
-             setCurrentUser(null);
-             setManifestos([]);
-             window.alert("Sua conta foi conectada em outro dispositivo. Desconectando...");
+             const remoteSessionId = newData.sesson_id;
+             const localSessionId = currentUser.sesson_id;
+
+             // Se o ID da sessão no banco é diferente do meu local
+             if (remoteSessionId && remoteSessionId !== localSessionId) {
+                console.warn("⛔ SESSÃO DERRUBADA: Login detectado em outro local.");
+                
+                // Desconecta imediatamente
+                setIsLoggedIn(false);
+                setCurrentUser(null);
+                setManifestos([]);
+                window.alert("Sua conta foi conectada em outro dispositivo. Desconectando...");
+             }
           }
         }
       )
       .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
-             console.log("✅ Monitoramento de Segurança ATIVO.");
+             console.log("✅ Monitoramento de Segurança ATIVO (Modo Global).");
           } else if (status === 'CHANNEL_ERROR') {
              console.error("❌ FALHA CRÍTICA: Não foi possível conectar ao canal de segurança.", err);
           }
