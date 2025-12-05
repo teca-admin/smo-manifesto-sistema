@@ -3,6 +3,13 @@ import React, { useState } from 'react';
 import { User as UserIcon, Lock, AlertCircle } from 'lucide-react';
 import { User } from '../types';
 
+// ------------------------------------------------------------------
+// CONFIGURAÇÃO N8N (LOGIN)
+// ------------------------------------------------------------------
+// URL atualizada conforme ambiente Easypanel
+const N8N_WEBHOOK_LOGIN = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Validar_Credenciais'; 
+// ------------------------------------------------------------------
+
 interface LoginScreenProps {
   onLoginSuccess: (user: User) => void;
   loading: boolean;
@@ -26,7 +33,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
     setLoading(true);
 
     try {
-      // 1. Gera um Token de Sessão Único
+      // 1. Gera um Token de Sessão Único no Front
       const sessionToken = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
       // Helper para data SQL
@@ -39,70 +46,68 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
       const seconds = String(now.getSeconds()).padStart(2, '0');
       const dataHrEnvio = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
-      // 2. Consulta o Webhook (n8n)
-      const WEBHOOK_URL = "https://projeto-teste-n8n.ly7t0m.easypanel.host/webhook/Validar_Credenciais";
-      
-      const payload = {
-        usuario: loginInput.trim(),
-        senha: passwordInput.trim(),
-        action: "validar credencial",
-        status: "request_access",
-        session_token: sessionToken, // Envia para o n8n atualizar o banco
-        timestamp: new Date().toISOString(),
-        "Data/hr do envio": dataHrEnvio
-      };
-
-      const response = await fetch(WEBHOOK_URL, {
+      // 2. Envia para o n8n validar e salvar a sessão
+      // CORREÇÃO: Campos ajustados para corresponder ao nó "Edit Fields" do workflow n8n
+      const response = await fetch(N8N_WEBHOOK_LOGIN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          usuario: loginInput,
+          senha: passwordInput,
+          action: 'validar credencial', // Obrigatório para o Switch "Validar ou Logoff"
+          session_token: sessionToken,  // n8n espera "session_token" para mapear para "sesson_id"
+          'Data/hr do envio': dataHrEnvio // n8n espera "Data/hr do envio"
+        })
       });
 
-      // 3. Processa a resposta
-      const responseText = await response.text();
-      let webhookResult;
-      
-      try {
-        const jsonResponse = JSON.parse(responseText);
-        // Se retornar array, pega o primeiro item
-        webhookResult = Array.isArray(jsonResponse) ? jsonResponse[0] : jsonResponse;
-      } catch (e) {
-        console.error("Erro parse JSON:", responseText);
-        // Tenta contornar erros de HTML retornados
-        throw new Error("Erro de comunicação com o servidor. Tente novamente.");
-      }
-
       if (!response.ok) {
-         throw new Error("Credenciais inválidas ou erro no servidor.");
+        throw new Error(`Erro de conexão com n8n: ${response.status}`);
       }
 
-      // 4. Verifica se recebemos dados válidos do usuário
-      const hasUserData = webhookResult && webhookResult.id && webhookResult.Nome_Completo;
+      // Leitura segura da resposta (evita erro "Unexpected end of JSON input")
+      const responseText = await response.text();
       
-      if (!hasUserData) {
-        // Se o servidor retornou "online" mas NÃO mandou os dados, bloqueamos.
-        // MAS, se o servidor atualizou o token lá no banco e retornou os dados, deixamos passar (para derrubar o outro).
-        const actionStatus = (webhookResult?.Action || webhookResult?.action || "").toString().toLowerCase();
-        if (actionStatus === "online") {
-           throw new Error("Usuário já está conectado e o servidor não liberou novo acesso.");
-        }
-        throw new Error("Usuário ou senha incorretos.");
+      // DIAGNÓSTICO DE ERRO DO N8N:
+      // Se o status for 200 OK mas o texto estiver vazio, o fluxo do n8n parou no meio (provavelmente no Switch)
+      if (!responseText) {
+         console.error("Recebido 200 OK mas sem corpo de resposta.");
+         throw new Error("Erro de Fluxo: O n8n encontrou o usuário mas não retornou resposta. Verifique a regra 'Offline' no nó Switch do n8n.");
       }
 
-      // 5. Monta o objeto de usuário usando as colunas CORRETAS do banco (sesson_id)
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Erro ao fazer parse do JSON:", responseText);
+        throw new Error("Resposta inválida do servidor (JSON corrompido).");
+      }
+
+      // Validação genérica
+      if (data.error || data.auth === false || data.status === 'erro') {
+        throw new Error(data.message || "Usuário ou senha incorretos.");
+      }
+
+      // Tratamento específico para o fluxo "Bloqueia o Acesso" do n8n
+      // Se o n8n retornar apenas { Action: "Online" } sem dados do usuário, significa bloqueio.
+      if (data.Action === 'Online' && !data.id) {
+         throw new Error("Usuário já possui uma sessão ativa. Tente entrar novamente para forçar a desconexão da sessão anterior.");
+      }
+
+      // 3. Monta o objeto de usuário autenticado
+      // O n8n pode retornar os dados dentro de 'user', ou no array [0], ou no próprio objeto root (como no seu caso)
+      const userFound = data.user || (data.id ? data : null) || (Array.isArray(data) ? data[0] : null) || {}; 
+      
+      if (!userFound.id && !userFound.Usuario) {
+         // Fallback: Se não retornou ID mas não deu erro explícito, algo está errado na estrutura
+         throw new Error("Credenciais inválidas ou erro na estrutura de retorno do n8n.");
+      }
+      
       const authenticatedUser: User = {
-        id: webhookResult.id,
-        Usuario: webhookResult.Usuario || loginInput,
-        Nome_Completo: webhookResult.Nome_Completo,
-        Senha: passwordInput,
-        
-        // ********************************************************************************
-        // 🚨 CRITICAL: MAPEAMENTO DE SESSÃO 🚨
-        // 'sesson_id' é o nome exato da coluna no banco. NÃO ALTERAR.
-        // Isso garante o funcionamento do logout remoto.
-        // ********************************************************************************
+        id: userFound.id || 0,
+        Usuario: userFound.Usuario || loginInput,
+        Nome_Completo: userFound.Nome_Completo || "Usuário",
+        Senha: passwordInput, // Mantendo compatibilidade com interface
         sesson_id: sessionToken, 
-        
         "Session_Data/HR": dataHrEnvio
       };
 
@@ -171,7 +176,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
                 className="w-full p-[14px] bg-gradient-to-br from-[#690c76] to-[#4d0557] text-white border-none rounded-[12px] text-[16px] font-semibold cursor-pointer shadow-[0_4px_15px_rgba(105,12,118,0.3)] hover:-translate-y-[1px] disabled:opacity-60 transition-all"
                 disabled={loading}
               >
-                {loading ? 'Verificando Credenciais...' : 'Entrar'}
+                {loading ? 'Validando no n8n...' : 'Entrar'}
               </button>
             </form>
             

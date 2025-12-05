@@ -4,7 +4,18 @@ import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal } from './components/Modals';
 import { Manifesto, User, SMO_Sistema_DB } from './types';
-import { supabase } from './supabaseClient';
+import { supabase, DB_SCHEMA } from './supabaseClient';
+
+// ------------------------------------------------------------------
+// CONFIGURAÇÃO N8N (AÇÕES)
+// ------------------------------------------------------------------
+// URLs atualizadas conforme ambiente Easypanel
+const N8N_WEBHOOK_SAVE = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Cadastro_de_Manifestos';
+const N8N_WEBHOOK_EDIT = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Cadastro_de_Manifestos';
+const N8N_WEBHOOK_CANCEL = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Cadastro_de_Manifestos'; // Usado para Cancelar e Anular
+// O Logout usa o mesmo fluxo de validação de credenciais, mas com action='logoff'
+const N8N_WEBHOOK_LOGOUT = 'https://teca-admin-n8n.ly7t0m.easypanel.host/webhook/Validar_Credenciais';
+// ------------------------------------------------------------------
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -84,37 +95,9 @@ function App() {
     dataHoraCompleto: item.Manifesto_Completo
   });
 
-  // Função centralizada para enviar dados ao n8n
-  const sendDataToN8N = async (manifesto: any, actionType: string) => {
-    const WEBHOOK_URL = "https://projeto-teste-n8n.ly7t0m.easypanel.host/webhook/Cadastro_de_Manifestos";
-    const currentTimestamp = getCurrentTimestampSQL();
-
-    const usuarioActionName = currentUser?.Nome_Completo || currentUser?.Usuario || "Sistema";
-
-    const payloadForWebhook = {
-       ...manifesto, 
-       "Carimbo_Data/HR": currentTimestamp,
-       "Action": actionType,
-       "Usuario_Action": usuarioActionName
-    };
-
-    const response = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payloadForWebhook)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro HTTP no Webhook: ${response.status}`);
-    }
-    
-    return payloadForWebhook;
-  };
-
   const fetchManifestos = useCallback(async () => {
     try {
+      // LEITURA CONTINUA VIA SUPABASE DIRETO (MAIS RÁPIDO QUE N8N PARA LISTAGEM)
       const { data, error } = await supabase
         .from('SMO_Sistema')
         .select('*')
@@ -144,13 +127,12 @@ function App() {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: DB_SCHEMA, // Usando o schema correto
           table: 'SMO_Sistema',
         },
         (payload) => {
           console.log('Realtime change received (Manifestos):', payload);
           
-          // Otimização: Atualiza o estado local diretamente com o payload para resposta instantânea
           if (payload.eventType === 'INSERT') {
             const newItem = mapDatabaseRowToManifesto(payload.new as SMO_Sistema_DB);
             setManifestos(prev => [newItem, ...prev]);
@@ -158,7 +140,6 @@ function App() {
             const updatedItem = mapDatabaseRowToManifesto(payload.new as SMO_Sistema_DB);
             setManifestos(prev => prev.map(m => m.id === updatedItem.id ? updatedItem : m));
           } else {
-             // Para DELETE ou outros casos, faz o fetch completo por segurança
              fetchManifestos();
           }
         }
@@ -172,24 +153,10 @@ function App() {
 
   // ************************************************************************************************
   // 🚨 🚨 🚨 LÓGICA DE SEGURANÇA CRÍTICA - "OUVIDO NA PAREDE" (SESSION KICK) 🚨 🚨 🚨
-  // ************************************************************************************************
-  // ATENÇÃO: NÃO ALTERE, NÃO REMOVA E NÃO REFATORE ESTE useEffect SEM ORDEM EXPLÍCITA.
-  // ESTA LÓGICA GARANTE QUE APENAS UMA SESSÃO PERMANEÇA ATIVA POR USUÁRIO.
-  //
-  // FUNCIONAMENTO:
-  // 1. Monitora a tabela 'Cadastro_de_Perfil' no Supabase.
-  // 2. Se detectar um UPDATE no ID do usuário logado, verifica a coluna 'sesson_id'.
-  // 3. Se o 'sesson_id' do banco for diferente do 'sesson_id' local, significa que houve login em outro lugar.
-  // 4. O sistema força o logout IMEDIATAMENTE.
-  //
-  // NOTA IMPORTANTE: O nome da coluna no banco é 'sesson_id' (com erro de digitação). 
-  // NÃO CORRIGIR PARA 'session_id'. O CÓDIGO DEPENDE DESSA GRAFIA EXATA.
+  // Esta lógica permanece no Supabase Realtime pois depende de monitoramento ativo do banco
   // ************************************************************************************************
   useEffect(() => {
     if (!isLoggedIn || !currentUser) return;
-
-    console.log("Monitorando sessão do usuário (ID DB):", currentUser.id);
-    console.log("Token Local:", currentUser.sesson_id);
 
     const sessionChannel = supabase
       .channel(`user-session-monitor-${currentUser.id}`)
@@ -197,24 +164,23 @@ function App() {
         'postgres_changes',
         {
           event: 'UPDATE',
-          schema: 'public',
+          schema: DB_SCHEMA, // Usando o schema correto
           table: 'Cadastro_de_Perfil',
           filter: `id=eq.${currentUser.id}`,
         },
         (payload) => {
-          console.log("Atualização de perfil detectada:", payload);
           const newUserState = payload.new as any; 
-          
-          // 🚨 CRÍTICO: Mapeamento da coluna 'sesson_id' (sic)
           const remoteSessionId = newUserState.sesson_id;
           const localSessionId = currentUser.sesson_id;
 
+          // Se o ID da sessão no banco mudou e ficou diferente do meu local (e não é nulo/logout)
           if (remoteSessionId && remoteSessionId !== localSessionId) {
              console.warn("Sessão invalidada! Novo login detectado em outro dispositivo.");
-             console.warn(`Remoto: ${remoteSessionId} vs Local: ${localSessionId}`);
-             
              showAlert('error', "Sua conta foi conectada em outro dispositivo. Desconectando...");
-             handleLogout();
+             // Logout local forçado
+             setIsLoggedIn(false);
+             setCurrentUser(null);
+             setManifestos([]);
           }
         }
       )
@@ -224,9 +190,6 @@ function App() {
       supabase.removeChannel(sessionChannel);
     };
   }, [isLoggedIn, currentUser]);
-  // ************************************************************************************************
-  // FIM DA LÓGICA CRÍTICA DE SEGURANÇA
-  // ************************************************************************************************
 
 
   const handleLoginSuccess = async (user: User) => {
@@ -239,52 +202,33 @@ function App() {
 
     if (currentUser) {
       try {
-        const WEBHOOK_AUTH_URL = "https://projeto-teste-n8n.ly7t0m.easypanel.host/webhook/Validar_Credenciais";
-        
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        const dataHrEnvio = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-
-        const payload = {
-          usuario: currentUser.Usuario,
-          senha: currentUser.Senha,
-          action: "logoff", 
-          status: "offline",
-          session_token: currentUser.sesson_id,
-          timestamp: new Date().toISOString(),
-          "Data/hr do envio": dataHrEnvio,
-          id: currentUser.id
-        };
-
-        const response = await fetch(WEBHOOK_AUTH_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        // Aguarda e processa a resposta do webhook para garantir que o ciclo completou
-        const responseData = await response.text();
-        console.log("Logoff processado pelo servidor:", responseData);
-        
+        // Envia para o n8n realizar o logoff (limpar sessão no banco)
+        // Isso evita problemas de permissão (RLS) no frontend
+        if (N8N_WEBHOOK_LOGOUT) {
+           await fetch(N8N_WEBHOOK_LOGOUT, {
+             method: 'POST',
+             headers: {'Content-Type': 'application/json'},
+             body: JSON.stringify({ 
+                action: 'logoff', // Aciona o switch 'logoff' no n8n
+                usuario: currentUser.Usuario,
+                id: currentUser.id,
+                sesson_id: currentUser.sesson_id
+             })
+           });
+        }
       } catch (error) {
-         console.error("Erro ao registrar logoff:", error);
+         console.error("Erro ao solicitar logoff ao servidor:", error);
+         // Mesmo com erro, fazemos o logout local
       } finally {
-        // Delay visual curto para transição suave, mas garantindo o reset
         setTimeout(() => {
           setIsLoggedIn(false);
           setCurrentUser(null);
           setIsLoggingOut(false);
           setManifestos([]);
-          setLoading(false); // IMPORTANTE: Reseta o loading para liberar a tela de login
+          setLoading(false);
         }, 500);
       }
     } else {
-        // Fallback caso não tenha currentUser (raro)
         setIsLoggedIn(false);
         setLoading(false);
         setIsLoggingOut(false);
@@ -292,9 +236,10 @@ function App() {
   };
 
   const handleSaveNew = async (data: Omit<Manifesto, 'id' | 'status' | 'turno'>) => {
-    setLoadingMsg("Registrando manifesto...");
+    setLoadingMsg("Enviando para o n8n...");
     try {
       const nextId = generateNextId(manifestos);
+      const currentTimestamp = getCurrentTimestampSQL();
       
       let turno = "3 Turno";
       if (data.dataHoraRecebido) {
@@ -304,31 +249,59 @@ function App() {
           else if (mins >= 840 && mins <= 1319) turno = "2 Turno";
       }
 
-      const newManifesto: Partial<Manifesto> = {
-          ...data,
-          id: nextId,
+      // Payload para o n8n
+      const payload = {
+          id_manifesto: nextId,
+          usuario_sistema: currentUser?.Usuario || "Sistema",
+          cia: data.cia,
+          manifesto_puxado: data.dataHoraPuxado,
+          manifesto_recebido: data.dataHoraRecebido,
+          cargas_inh: data.cargasINH,
+          cargas_iz: data.cargasIZ,
           status: "Manifesto Recebido",
           turno: turno,
-          usuario: currentUser?.Usuario || "Sistema"
+          carimbo_data_hr: currentTimestamp
       };
 
-      await sendDataToN8N(newManifesto, "Registro de Dados");
-      showAlert('success', "Manifesto registrado com sucesso!");
+      // WEBHOOK n8n
+      const response = await fetch(N8N_WEBHOOK_SAVE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error("Erro na comunicação com n8n");
+
+      showAlert('success', "Manifesto enviado para processamento!");
     } catch (err: any) {
-      showAlert('error', "Erro ao salvar: " + err.message);
+      console.error(err);
+      showAlert('error', "Erro ao salvar via n8n: " + err.message);
     } finally {
       setLoadingMsg(null);
     }
   };
 
   const handleEditSave = async (partialData: Partial<Manifesto> & { id: string, usuario: string, justificativa: string }) => {
-    setLoadingMsg("Salvando alterações...");
+    setLoadingMsg("Enviando edição ao n8n...");
     try {
-      await sendDataToN8N(partialData, "Edição de Dados");
-      showAlert('success', "Manifesto editado com sucesso!");
+      // WEBHOOK n8n
+      const response = await fetch(N8N_WEBHOOK_EDIT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+           ...partialData,
+           usuario_editor: currentUser?.Usuario, // Quem está editando
+           carimbo_atualizacao: getCurrentTimestampSQL()
+        })
+      });
+
+      if (!response.ok) throw new Error("Erro na comunicação com n8n");
+
+      showAlert('success', "Edição enviada com sucesso!");
       setEditingId(null);
     } catch (err: any) {
-      showAlert('error', "Erro ao editar: " + err.message);
+      console.error(err);
+      showAlert('error', "Erro ao editar via n8n: " + err.message);
     } finally {
       setLoadingMsg(null);
     }
@@ -350,21 +323,26 @@ function App() {
       const id = cancellationId;
       setCancellationId(null);
 
-      setLoadingMsg("Cancelando manifesto...");
+      setLoadingMsg("Processando cancelamento...");
       try {
-          const manifest = manifestos.find(m => m.id === id);
-          if (!manifest) throw new Error("Manifesto não encontrado");
+          // WEBHOOK n8n (Reutilizando a variável de Cancel/Anular)
+          const response = await fetch(N8N_WEBHOOK_CANCEL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+               action: 'cancelar',
+               id_manifesto: id,
+               usuario: currentUser?.Usuario,
+               justificativa: justificativa,
+               timestamp: getCurrentTimestampSQL()
+            })
+          });
 
-          const payload = {
-              id: manifest.id,
-              usuario: manifest.usuario,
-              justificativa: justificativa,
-              status: "Manifesto Cancelado"
-          };
+          if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
-          await sendDataToN8N(payload, "Excluir Dados");
-          showAlert('success', "Manifesto cancelado com sucesso!");
+          showAlert('success', "Solicitação de cancelamento enviada!");
       } catch (err: any) {
+           console.error(err);
            showAlert('error', "Erro ao cancelar: " + err.message);
       } finally {
            setLoadingMsg(null);
@@ -376,24 +354,27 @@ function App() {
       const id = anularId;
       setAnularId(null);
 
-      setLoadingMsg("Anulando status...");
+      setLoadingMsg("Processando anulação...");
       try {
-          const manifest = manifestos.find(m => m.id === id);
-          if (!manifest) throw new Error("Manifesto não encontrado");
+           // WEBHOOK n8n
+          const response = await fetch(N8N_WEBHOOK_CANCEL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+               action: 'anular', // Identificador para o n8n saber o que fazer
+               id_manifesto: id,
+               usuario: currentUser?.Usuario,
+               justificativa: justificativa,
+               timestamp: getCurrentTimestampSQL()
+            })
+          });
 
-          const payload = {
-              id: manifest.id,
-              usuario: manifest.usuario,
-              status: "Manifesto Recebido",
-              Status_Anterior: manifest.status, // Adicionado para rastreio
-              justificativa: justificativa, // Nova justificativa
-              "Usuario_Operação": manifest.usuarioOperacao // Adicionando Usuario_Operação ao payload
-          };
+          if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
-          await sendDataToN8N(payload, "Anular Status");
-          showAlert('success', "Status anulado com sucesso!");
+          showAlert('success', "Solicitação de anulação enviada!");
       } catch (err: any) {
-           showAlert('error', "Erro ao anular status: " + err.message);
+           console.error(err);
+           showAlert('error', "Erro ao anular: " + err.message);
       } finally {
            setLoadingMsg(null);
       }
@@ -401,9 +382,9 @@ function App() {
 
   // Função para abrir o histórico e forçar atualização dos dados
   const handleOpenHistory = async (id: string) => {
-    setViewingHistoryId(id); // Abre o modal imediatamente com os dados locais
+    setViewingHistoryId(id);
     
-    // Consulta pontual ao Supabase para garantir dados frescos
+    // Consulta pontual ao Supabase (Leitura sempre direta é melhor)
     try {
       const { data, error } = await supabase
         .from('SMO_Sistema')
@@ -414,7 +395,6 @@ function App() {
       if (data && !error) {
         const freshManifesto = mapDatabaseRowToManifesto(data as SMO_Sistema_DB);
         setManifestos(prev => prev.map(m => m.id === id ? freshManifesto : m));
-        console.log("Histórico atualizado com dados frescos do banco.");
       }
     } catch (error) {
        console.error("Erro ao atualizar histórico individual:", error);
