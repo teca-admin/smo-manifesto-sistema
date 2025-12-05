@@ -121,17 +121,18 @@ function App() {
 
     fetchManifestos();
 
+    // Canal único para dados operacionais
     const channel = supabase
-      .channel('table-db-changes')
+      .channel('manifestos-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
-          schema: DB_SCHEMA, // Usando o schema correto
+          schema: DB_SCHEMA, // IMPORTANTE: Schema correto
           table: 'SMO_Sistema',
         },
         (payload) => {
-          console.log('Realtime change received (Manifestos):', payload);
+          console.log('⚡ Realtime Update (Manifestos):', payload.eventType);
           
           if (payload.eventType === 'INSERT') {
             const newItem = mapDatabaseRowToManifesto(payload.new as SMO_Sistema_DB);
@@ -144,7 +145,13 @@ function App() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log("✅ Conectado ao Realtime de Manifestos.");
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error("❌ Erro no canal de Manifestos:", err);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -153,43 +160,59 @@ function App() {
 
   // ************************************************************************************************
   // 🚨 🚨 🚨 LÓGICA DE SEGURANÇA CRÍTICA - "OUVIDO NA PAREDE" (SESSION KICK) 🚨 🚨 🚨
-  // Esta lógica permanece no Supabase Realtime pois depende de monitoramento ativo do banco
+  // PLANO A: Monitoramento puro via WebSocket. Sem polling.
   // ************************************************************************************************
   useEffect(() => {
     if (!isLoggedIn || !currentUser) return;
 
+    console.log(`🔒 Iniciando monitoramento de sessão para User ID: ${currentUser.id} | Session: ${currentUser.sesson_id}`);
+
     const sessionChannel = supabase
-      .channel(`user-session-monitor-${currentUser.id}`)
+      .channel(`security-session-${currentUser.id}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
-          schema: DB_SCHEMA, // Usando o schema correto
+          schema: DB_SCHEMA, 
           table: 'Cadastro_de_Perfil',
-          filter: `id=eq.${currentUser.id}`,
+          filter: `id=eq.${currentUser.id}`, // Filtra apenas alterações no meu usuário
         },
         (payload) => {
-          const newUserState = payload.new as any; 
-          const remoteSessionId = newUserState.sesson_id;
+          const newData = payload.new as any; 
+          const remoteSessionId = newData.sesson_id;
           const localSessionId = currentUser.sesson_id;
 
-          // Se o ID da sessão no banco mudou e ficou diferente do meu local (e não é nulo/logout)
+          console.log("🔒 Evento de Sessão Recebido:", { remote: remoteSessionId, local: localSessionId });
+
+          // Se o ID da sessão no banco é diferente do meu local (e não é null/logoff)
           if (remoteSessionId && remoteSessionId !== localSessionId) {
-             console.warn("Sessão invalidada! Novo login detectado em outro dispositivo.");
+             console.warn("⛔ SESSÃO DERRUBADA: Login detectado em outro local.");
              showAlert('error', "Sua conta foi conectada em outro dispositivo. Desconectando...");
-             // Logout local forçado
+             
+             // Desconecta imediatamente
              setIsLoggedIn(false);
              setCurrentUser(null);
              setManifestos([]);
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+          if (status === 'SUBSCRIBED') {
+             console.log("✅ Monitoramento de Segurança ATIVO (Plano A).");
+          } else if (status === 'CHANNEL_ERROR') {
+             console.error("❌ FALHA CRÍTICA: Não foi possível conectar ao canal de segurança.", err);
+             // Se falhar a conexão de segurança, avisamos o usuário (opcional, mas recomendado)
+             // showAlert('error', "Falha na conexão de segurança. Recarregue a página.");
+          } else if (status === 'TIMED_OUT') {
+             console.error("❌ TIMEOUT na conexão de segurança.");
+          }
+      });
 
     return () => {
+      console.log("🔓 Parando monitoramento de sessão.");
       supabase.removeChannel(sessionChannel);
     };
-  }, [isLoggedIn, currentUser]);
+  }, [isLoggedIn, currentUser]); // Remove dependencies desnecessárias para evitar recriação do canal
 
 
   const handleLoginSuccess = async (user: User) => {
@@ -202,16 +225,15 @@ function App() {
 
     if (currentUser) {
       try {
-        // Envia para o n8n realizar o logoff (limpar sessão no banco)
-        // Isso evita problemas de permissão (RLS) no frontend
         if (N8N_WEBHOOK_LOGOUT) {
+           // Envia senha para satisfazer a query do n8n
            await fetch(N8N_WEBHOOK_LOGOUT, {
              method: 'POST',
              headers: {'Content-Type': 'application/json'},
              body: JSON.stringify({ 
-                action: 'logoff', // Aciona o switch 'logoff' no n8n
+                action: 'logoff', 
                 usuario: currentUser.Usuario,
-                senha: currentUser.Senha, // Necessário pois o node "Consultar os Dados1" no n8n filtra por Usuario e Senha
+                senha: currentUser.Senha, 
                 id: currentUser.id,
                 sesson_id: currentUser.sesson_id
              })
@@ -219,7 +241,6 @@ function App() {
         }
       } catch (error) {
          console.error("Erro ao solicitar logoff ao servidor:", error);
-         // Mesmo com erro, fazemos o logout local
       } finally {
         setTimeout(() => {
           setIsLoggedIn(false);
@@ -250,7 +271,6 @@ function App() {
           else if (mins >= 840 && mins <= 1319) turno = "2 Turno";
       }
 
-      // Payload para o n8n
       const payload = {
           id_manifesto: nextId,
           usuario_sistema: currentUser?.Usuario || "Sistema",
@@ -264,7 +284,6 @@ function App() {
           carimbo_data_hr: currentTimestamp
       };
 
-      // WEBHOOK n8n
       const response = await fetch(N8N_WEBHOOK_SAVE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -285,13 +304,12 @@ function App() {
   const handleEditSave = async (partialData: Partial<Manifesto> & { id: string, usuario: string, justificativa: string }) => {
     setLoadingMsg("Enviando edição ao n8n...");
     try {
-      // WEBHOOK n8n
       const response = await fetch(N8N_WEBHOOK_EDIT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
            ...partialData,
-           usuario_editor: currentUser?.Usuario, // Quem está editando
+           usuario_editor: currentUser?.Usuario, 
            carimbo_atualizacao: getCurrentTimestampSQL()
         })
       });
@@ -326,7 +344,6 @@ function App() {
 
       setLoadingMsg("Processando cancelamento...");
       try {
-          // WEBHOOK n8n (Reutilizando a variável de Cancel/Anular)
           const response = await fetch(N8N_WEBHOOK_CANCEL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -357,12 +374,11 @@ function App() {
 
       setLoadingMsg("Processando anulação...");
       try {
-           // WEBHOOK n8n
           const response = await fetch(N8N_WEBHOOK_CANCEL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-               action: 'anular', // Identificador para o n8n saber o que fazer
+               action: 'anular', 
                id_manifesto: id,
                usuario: currentUser?.Usuario,
                justificativa: justificativa,
@@ -381,11 +397,9 @@ function App() {
       }
   };
 
-  // Função para abrir o histórico e forçar atualização dos dados
   const handleOpenHistory = async (id: string) => {
     setViewingHistoryId(id);
     
-    // Consulta pontual ao Supabase (Leitura sempre direta é melhor)
     try {
       const { data, error } = await supabase
         .from('SMO_Sistema')
