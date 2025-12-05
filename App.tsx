@@ -38,6 +38,9 @@ function App() {
   const [anularId, setAnularId] = useState<string | null>(null);
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
+  
+  // Estado para controle de erro no Realtime
+  const [realtimeConnectionError, setRealtimeConnectionError] = useState(false);
 
   const getCurrentTimestampSQL = () => {
     const now = new Date();
@@ -111,7 +114,10 @@ function App() {
       }
     } catch (error: any) {
       console.error("Erro ao buscar manifestos:", error);
-      showAlert('error', "Erro ao carregar histórico: " + error.message);
+      // Não mostra alerta se for erro de conexão no polling para não floodar a tela
+      if (!error.message?.includes('Failed to fetch')) {
+         showAlert('error', "Erro ao carregar histórico: " + error.message);
+      }
     }
   }, []);
 
@@ -147,8 +153,11 @@ function App() {
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           console.log("✅ Conectado ao Realtime de Manifestos.");
+          setRealtimeConnectionError(false);
         } else if (status === 'CHANNEL_ERROR') {
           console.error("❌ Erro no canal de Manifestos:", err);
+          // Ativa o fallback de polling
+          setRealtimeConnectionError(true);
         }
       });
 
@@ -156,6 +165,17 @@ function App() {
       supabase.removeChannel(channel);
     };
   }, [isLoggedIn, fetchManifestos]);
+
+  // Fallback Polling quando Realtime falha
+  useEffect(() => {
+    if (isLoggedIn && realtimeConnectionError) {
+      console.log("⚠️ Realtime indisponível. Ativando polling (5s)...");
+      const interval = setInterval(() => {
+        fetchManifestos();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isLoggedIn, realtimeConnectionError, fetchManifestos]);
 
   // ************************************************************************************************
   // 🚨 SISTEMA DE SEGURANÇA HÍBRIDO (EVENT-DRIVEN + REALTIME) 🚨
@@ -329,6 +349,10 @@ function App() {
       if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
       showAlert('success', "Manifesto enviado para processamento!");
+      
+      // REFRESH: Garante espelhamento dos dados imediatamante
+      await fetchManifestos();
+
     } catch (err: any) {
       console.error(err);
       showAlert('error', "Erro ao salvar via n8n: " + err.message);
@@ -370,6 +394,10 @@ function App() {
 
       showAlert('success', "Edição enviada com sucesso!");
       setEditingId(null);
+      
+      // REFRESH: Garante espelhamento dos dados imediatamante
+      await fetchManifestos();
+
     } catch (err: any) {
       console.error(err);
       showAlert('error', "Erro ao editar via n8n: " + err.message);
@@ -418,6 +446,10 @@ function App() {
           if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
           showAlert('success', "Solicitação de cancelamento enviada!");
+
+          // REFRESH: Garante espelhamento dos dados imediatamante
+          await fetchManifestos();
+
       } catch (err: any) {
            console.error(err);
            showAlert('error', "Erro ao cancelar: " + err.message);
@@ -455,6 +487,10 @@ function App() {
           if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
           showAlert('success', "Solicitação de anulação enviada!");
+
+          // REFRESH: Garante espelhamento dos dados imediatamante
+          await fetchManifestos();
+
       } catch (err: any) {
            console.error(err);
            showAlert('error', "Erro ao anular: " + err.message);
