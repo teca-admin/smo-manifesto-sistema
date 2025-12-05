@@ -186,6 +186,7 @@ function App() {
         setIsLoggedIn(false);
         setCurrentUser(null);
         setManifestos([]);
+        setLoading(false); // CRÍTICO: Reseta o loading para a tela de login não travar
         // Usando window.alert pois bloqueia a thread e força atenção
         window.alert("Sua conta foi conectada em outro dispositivo. Você foi desconectado.");
      }
@@ -212,6 +213,7 @@ function App() {
                 setIsLoggedIn(false);
                 setCurrentUser(null);
                 setManifestos([]);
+                setLoading(false); // CRÍTICO: Reseta o loading para a tela de login não travar
                 window.alert("Sua conta foi conectada em outro dispositivo.");
              }
           }
@@ -244,6 +246,7 @@ function App() {
   const handleLoginSuccess = async (user: User) => {
     setCurrentUser(user);
     setIsLoggedIn(true);
+    setLoading(false); // CRÍTICO: Reseta o loading ao logar com sucesso
   };
 
   const handleLogout = async () => {
