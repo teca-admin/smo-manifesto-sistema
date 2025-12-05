@@ -160,13 +160,40 @@ function App() {
 
   // ************************************************************************************************
   // 🚨 🚨 🚨 LÓGICA DE SEGURANÇA CRÍTICA - "OUVIDO NA PAREDE" (SESSION KICK) 🚨 🚨 🚨
-  // PLANO A: Monitoramento puro via WebSocket. Sem polling.
   // ************************************************************************************************
   useEffect(() => {
     if (!isLoggedIn || !currentUser) return;
 
-    console.log(`🔒 Iniciando monitoramento de sessão para User ID: ${currentUser.id} | Session: ${currentUser.sesson_id}`);
+    console.log(`🔒 Iniciando monitoramento de sessão para User ID: ${currentUser.id}`);
 
+    // 1. CHECAGEM INICIAL (Check-on-mount)
+    // Garante que, se o usuário der F5 ou entrar com token velho, ele cai na hora.
+    const checkCurrentSession = async () => {
+       const { data, error } = await supabase
+         .from('Cadastro_de_Perfil')
+         .select('sesson_id')
+         .eq('id', currentUser.id)
+         .single();
+
+       if (error) {
+         console.error("Erro ao verificar sessão inicial:", error);
+         return; // Falha silenciosa, deixa o realtime assumir
+       }
+
+       if (data && data.sesson_id !== currentUser.sesson_id) {
+          console.warn("⛔ SESSÃO INVÁLIDA DETECTADA AO INICIAR.");
+          setIsLoggedIn(false);
+          setCurrentUser(null);
+          setManifestos([]);
+          window.alert("Sua sessão expirou ou foi aberta em outro local.");
+       } else {
+          console.log("✅ Sessão inicial verificada e válida.");
+       }
+    };
+
+    checkCurrentSession();
+
+    // 2. MONITORAMENTO REALTIME (Plano A)
     const sessionChannel = supabase
       .channel(`security-session-${currentUser.id}`)
       .on(
@@ -187,24 +214,21 @@ function App() {
           // Se o ID da sessão no banco é diferente do meu local (e não é null/logoff)
           if (remoteSessionId && remoteSessionId !== localSessionId) {
              console.warn("⛔ SESSÃO DERRUBADA: Login detectado em outro local.");
-             showAlert('error', "Sua conta foi conectada em outro dispositivo. Desconectando...");
+             // showAlert('error', "Sua conta foi conectada em outro dispositivo. Desconectando...");
              
              // Desconecta imediatamente
              setIsLoggedIn(false);
              setCurrentUser(null);
              setManifestos([]);
+             window.alert("Sua conta foi conectada em outro dispositivo. Desconectando...");
           }
         }
       )
       .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
-             console.log("✅ Monitoramento de Segurança ATIVO (Plano A).");
+             console.log("✅ Monitoramento de Segurança ATIVO.");
           } else if (status === 'CHANNEL_ERROR') {
              console.error("❌ FALHA CRÍTICA: Não foi possível conectar ao canal de segurança.", err);
-             // Se falhar a conexão de segurança, avisamos o usuário (opcional, mas recomendado)
-             // showAlert('error', "Falha na conexão de segurança. Recarregue a página.");
-          } else if (status === 'TIMED_OUT') {
-             console.error("❌ TIMEOUT na conexão de segurança.");
           }
       });
 
@@ -212,7 +236,7 @@ function App() {
       console.log("🔓 Parando monitoramento de sessão.");
       supabase.removeChannel(sessionChannel);
     };
-  }, [isLoggedIn, currentUser]); // Remove dependencies desnecessárias para evitar recriação do canal
+  }, [isLoggedIn, currentUser]); 
 
 
   const handleLoginSuccess = async (user: User) => {
