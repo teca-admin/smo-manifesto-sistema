@@ -303,17 +303,21 @@ function App() {
           else if (mins >= 840 && mins <= 1319) turno = "2 Turno";
       }
 
+      // CORREÇÃO: Alinhando chaves do JSON com o esperado pelo n8n ("Edit Fields Normal")
       const payload = {
-          id_manifesto: nextId,
-          usuario_sistema: currentUser?.Usuario || "Sistema",
+          id: nextId, // n8n espera "id"
+          usuario: currentUser?.Usuario || "Sistema", // n8n espera "usuario"
           cia: data.cia,
-          manifesto_puxado: data.dataHoraPuxado,
-          manifesto_recebido: data.dataHoraRecebido,
-          cargas_inh: data.cargasINH,
-          cargas_iz: data.cargasIZ,
+          dataHoraPuxado: data.dataHoraPuxado, // n8n espera "dataHoraPuxado"
+          dataHoraRecebido: data.dataHoraRecebido, // n8n espera "dataHoraRecebido"
+          cargasINH: data.cargasINH, // n8n espera "cargasINH"
+          cargasIZ: data.cargasIZ, // n8n espera "cargasIZ"
           status: "Manifesto Recebido",
           turno: turno,
-          carimbo_data_hr: currentTimestamp
+          'Carimbo_Data/HR': currentTimestamp, // n8n espera "Carimbo_Data/HR"
+          Action: "Registro de Dados", // ESSENCIAL para o Switch do n8n
+          Usuario_Action: currentUser?.Usuario || "Sistema",
+          justificativa: "Cadastro Inicial"
       };
 
       const response = await fetch(N8N_WEBHOOK_SAVE, {
@@ -339,14 +343,27 @@ function App() {
 
     setLoadingMsg("Enviando edição ao n8n...");
     try {
+      // CORREÇÃO: Alinhando payload para edição
+      const payload = {
+         id: partialData.id,
+         usuario: currentUser?.Usuario, // Quem está editando
+         // Mapeando campos parciais se existirem
+         cia: partialData.cia,
+         dataHoraPuxado: partialData.dataHoraPuxado,
+         dataHoraRecebido: partialData.dataHoraRecebido,
+         cargasINH: partialData.cargasINH,
+         cargasIZ: partialData.cargasIZ,
+         
+         justificativa: partialData.justificativa,
+         Action: "Edição de Dados", // ESSENCIAL para o Switch do n8n
+         Usuario_Action: currentUser?.Usuario,
+         'Carimbo_Data/HR': getCurrentTimestampSQL()
+      };
+
       const response = await fetch(N8N_WEBHOOK_EDIT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-           ...partialData,
-           usuario_editor: currentUser?.Usuario, 
-           carimbo_atualizacao: getCurrentTimestampSQL()
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) throw new Error("Erro na comunicação com n8n");
@@ -382,16 +399,20 @@ function App() {
 
       setLoadingMsg("Processando cancelamento...");
       try {
+          // CORREÇÃO: Alinhando payload para cancelamento
+          const payload = {
+             Action: "Excluir Dados", // ESSENCIAL para o Switch do n8n (caminho Cancelar Manifesto)
+             id: id,
+             usuario: currentUser?.Usuario,
+             Usuario_Action: currentUser?.Usuario,
+             justificativa: justificativa,
+             'Carimbo_Data/HR': getCurrentTimestampSQL()
+          };
+
           const response = await fetch(N8N_WEBHOOK_CANCEL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-               action: 'cancelar',
-               id_manifesto: id,
-               usuario: currentUser?.Usuario,
-               justificativa: justificativa,
-               timestamp: getCurrentTimestampSQL()
-            })
+            body: JSON.stringify(payload)
           });
 
           if (!response.ok) throw new Error("Erro na comunicação com n8n");
@@ -415,16 +436,20 @@ function App() {
 
       setLoadingMsg("Processando anulação...");
       try {
+          // CORREÇÃO: Alinhando payload para anulação
+          const payload = {
+             Action: "Anular Status", // ESSENCIAL para o Switch do n8n
+             id: id,
+             usuario: currentUser?.Usuario,
+             Usuario_Action: currentUser?.Usuario,
+             justificativa: justificativa,
+             'Carimbo_Data/HR': getCurrentTimestampSQL()
+          };
+
           const response = await fetch(N8N_WEBHOOK_CANCEL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-               action: 'anular', 
-               id_manifesto: id,
-               usuario: currentUser?.Usuario,
-               justificativa: justificativa,
-               timestamp: getCurrentTimestampSQL()
-            })
+            body: JSON.stringify(payload)
           });
 
           if (!response.ok) throw new Error("Erro na comunicação com n8n");
