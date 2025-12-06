@@ -3,8 +3,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal } from './components/Modals';
+import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { Manifesto, User, SMO_Sistema_DB } from './types';
-import { supabase, DB_SCHEMA } from './supabaseClient';
+import { supabase, DB_SCHEMA, PERFORMANCE_SCHEMA } from './supabaseClient';
 
 // ------------------------------------------------------------------
 // CONFIGURAÇÃO N8N (AÇÕES)
@@ -39,6 +40,43 @@ function App() {
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
   
+  // Helper para disparar eventos de performance (Apenas Operacionais)
+  const trackPerformanceAction = (type: 'cadastro' | 'edicao' | 'cancelamento' | 'anulacao') => {
+    try {
+      window.dispatchEvent(new CustomEvent('smo-action', { detail: { type } }));
+    } catch (e) {
+      console.error("Erro ao rastrear ação:", e);
+    }
+  };
+
+  // Função para logar Login/Logoff DIRETAMENTE no banco (Sem depender do componente Monitor)
+  const logDirectSystemAction = async (action: 'login' | 'logoff', user: User) => {
+      const now = new Date();
+      const horaLocal = String(now.getHours()).padStart(2, '0');
+      const timestampLocalISO = now.toISOString();
+
+      try {
+          await supabase
+            .schema(PERFORMANCE_SCHEMA)
+            .rpc('registrar_metricas', {
+              p_reqs: 0,
+              p_n8n: 0, 
+              p_banda: 0,
+              p_usuario: user.Usuario,
+              p_hora: horaLocal,
+              p_timestamp_iso: timestampLocalISO,
+              p_cadastro: 0,
+              p_edicao: 0,
+              p_cancelamento: 0,
+              p_anulacao: 0,
+              p_login: action === 'login' ? 1 : 0,
+              p_logoff: action === 'logoff' ? 1 : 0
+            });
+      } catch (e) {
+          console.error(`Falha ao registrar ${action}:`, e);
+      }
+  };
+
   const getCurrentTimestampSQL = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -102,12 +140,39 @@ function App() {
     dataHoraCompleto: item.Manifesto_Completo
   });
 
+  // Função que verifica o banco DE VERDADE (HTTP request)
+  const verifySessionIntegrity = useCallback(async () => {
+     const user = currentUserRef.current;
+     if (!user) return;
+
+     const { data, error } = await supabase
+       .from('Cadastro_de_Perfil')
+       .select('sesson_id')
+       .eq('id', user.id)
+       .single();
+
+     if (error) {
+       console.error("⚠️ Erro ao verificar sessão:", error.message || JSON.stringify(error));
+       return;
+     }
+
+     if (data && data.sesson_id !== user.sesson_id) {
+        console.error("⛔ SESSÃO DUPLICADA DETECTADA. DESCONECTANDO.");
+        setIsLoggedIn(false);
+        setCurrentUser(null);
+        setManifestos([]);
+        setLoading(false);
+        window.alert("Sua conta foi conectada em outro dispositivo. Você foi desconectado.");
+     }
+  }, []);
+
   const fetchManifestos = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('SMO_Sistema')
         .select('*')
-        .order('id', { ascending: false });
+        .order('id', { ascending: false })
+        .limit(100); // 🚨 LIMITANDO A 100 REGISTROS PARA OTIMIZAÇÃO
 
       if (error) throw error;
 
@@ -117,155 +182,59 @@ function App() {
       }
     } catch (error: any) {
       console.error("Erro ao buscar manifestos:", error);
-      // Não mostra alerta se for erro de conexão no polling para não floodar a tela
       if (!error.message?.includes('Failed to fetch')) {
-         showAlert('error', "Erro ao carregar histórico: " + error.message);
+         // Não mostramos alerta visual para erro de fetch no polling para não spammar o usuário
+         console.warn("Falha silenciosa no polling:", error.message || JSON.stringify(error));
       }
     }
   }, []);
 
-  // SUBSCRIPTION DO REALTIME (MANIFESTOS)
+  // ************************************************************************************************
+  // 🔄 SISTEMA DE POLLING (ATUALIZAÇÃO A CADA 1 SEGUNDO)
+  // ************************************************************************************************
   useEffect(() => {
     if (!isLoggedIn) return;
 
+    // 1. Carga Inicial
     fetchManifestos();
 
-    const channel = supabase
-      .channel('manifestos-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: DB_SCHEMA,
-          table: 'SMO_Sistema',
-        },
-        (payload) => {
-          console.log('⚡ Realtime Update (Manifestos):', payload.eventType);
-          
-          if (payload.eventType === 'INSERT') {
-            const newItem = mapDatabaseRowToManifesto(payload.new as SMO_Sistema_DB);
-            setManifestos(prev => [newItem, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedItem = mapDatabaseRowToManifesto(payload.new as SMO_Sistema_DB);
-            setManifestos(prev => prev.map(m => m.id === updatedItem.id ? updatedItem : m));
-          } else {
-             fetchManifestos();
-          }
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log("✅ Conectado ao Realtime de Manifestos.");
-        } else if (status === 'CHANNEL_ERROR') {
-          console.warn("⚠️ Aviso: Canal Realtime desconectado (Manifestos).", err);
-        } else if (status === 'TIMED_OUT') {
-           console.warn("⚠️ Aviso: Timeout no Realtime (Manifestos).");
-        }
-      });
+    // 2. Configura o intervalo de 1 segundo (1000ms)
+    const intervalId = setInterval(() => {
+      fetchManifestos();
+    }, 1000);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isLoggedIn, fetchManifestos]);
-
-  // ************************************************************************************************
-  // 🚨 SISTEMA DE SEGURANÇA HÍBRIDO (EVENT-DRIVEN + REALTIME) 🚨
-  // ************************************************************************************************
-  
-  // Função que verifica o banco DE VERDADE (HTTP request, não websocket)
-  const verifySessionIntegrity = async () => {
-     const user = currentUserRef.current;
-     if (!user) return;
-
-     // console.log("🔍 Verificando integridade da sessão (Trigger por Interação)...");
-
-     const { data, error } = await supabase
-       .from('Cadastro_de_Perfil')
-       .select('sesson_id')
-       .eq('id', user.id)
-       .single();
-
-     if (error) {
-       // Se der erro de rede, não derruba imediatamente para não ser chato,
-       // mas loga o erro.
-       console.error("⚠️ Erro ao verificar sessão:", error.message);
-       return;
-     }
-
-     if (data && data.sesson_id !== user.sesson_id) {
-        console.error("⛔ SESSÃO DUPLICADA DETECTADA. DESCONECTANDO.");
-        setIsLoggedIn(false);
-        setCurrentUser(null);
-        setManifestos([]);
-        setLoading(false); // CRÍTICO: Reseta o loading para a tela de login não travar
-        // Usando window.alert pois bloqueia a thread e força atenção
-        window.alert("Sua conta foi conectada em outro dispositivo. Você foi desconectado.");
-     }
-  };
-
-  useEffect(() => {
-    if (!isLoggedIn || !currentUser) return;
-
-    // 1. REALTIME (Plano A - Rápido, mas pode falhar em Self-Hosted)
-    const sessionChannel = supabase
-      .channel(`security-check-${currentUser.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: DB_SCHEMA, 
-          table: 'Cadastro_de_Perfil',
-        },
-        (payload) => {
-          const newData = payload.new as any;
-          if (String(newData.id) === String(currentUser.id)) {
-             if (newData.sesson_id !== currentUser.sesson_id) {
-                console.warn("⚡ Realtime detectou quebra de sessão.");
-                setIsLoggedIn(false);
-                setCurrentUser(null);
-                setManifestos([]);
-                setLoading(false); // CRÍTICO: Reseta o loading para a tela de login não travar
-                window.alert("Sua conta foi conectada em outro dispositivo.");
-             }
-          }
-        }
-      )
-      .subscribe((status) => {
-         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-             console.warn("⚠️ Aviso: Canal Realtime desconectado (Segurança). Mantendo verificações por interação.");
-         }
-      });
-
-    // 2. CHECK POR INTERAÇÃO (Plano B - "Sentinela")
-    // Verifica a sessão sempre que o usuário "toca" no sistema (foco, clique).
-    // Isso NÃO É UM TIMER. Só roda se o usuário estiver ativo.
-    
+    // 3. Listeners Locais de Segurança (Verifica sessão ao interagir)
     const handleInteraction = () => verifySessionIntegrity();
-
-    window.addEventListener('focus', handleInteraction); // Quando volta pra aba
-    window.addEventListener('click', handleInteraction); // Quando clica em qualquer lugar
-    document.addEventListener('visibilitychange', handleInteraction); // Quando muda de aba
-
-    // Check inicial ao montar
-    verifySessionIntegrity();
+    window.addEventListener('focus', handleInteraction);
+    window.addEventListener('click', handleInteraction);
+    document.addEventListener('visibilitychange', handleInteraction);
 
     return () => {
-      supabase.removeChannel(sessionChannel);
+      clearInterval(intervalId); // Limpa o intervalo ao desmontar/deslogar
       window.removeEventListener('focus', handleInteraction);
       window.removeEventListener('click', handleInteraction);
       document.removeEventListener('visibilitychange', handleInteraction);
     };
-  }, [isLoggedIn, currentUser]); 
+  }, [isLoggedIn, fetchManifestos, verifySessionIntegrity]);
 
 
   const handleLoginSuccess = async (user: User) => {
+    // 1. Registra Login Imediatamente (Bypass Monitor)
+    await logDirectSystemAction('login', user);
+    
+    // 2. Atualiza Estados
     setCurrentUser(user);
     setIsLoggedIn(true);
-    setLoading(false); // CRÍTICO: Reseta o loading ao logar com sucesso
+    setLoading(false);
   };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    
+    // 1. Registra Logoff Imediatamente (Bypass Monitor)
+    if (currentUser) {
+        await logDirectSystemAction('logoff', currentUser);
+    }
 
     if (currentUser) {
       try {
@@ -301,9 +270,8 @@ function App() {
   };
 
   const handleSaveNew = async (data: Omit<Manifesto, 'id' | 'status' | 'turno'>) => {
-    // Check de segurança antes de salvar
     await verifySessionIntegrity();
-    if (!currentUserRef.current) return; // Se caiu a sessão, para tudo
+    if (!currentUserRef.current) return;
 
     setLoadingMsg("Enviando para o n8n...");
     try {
@@ -318,19 +286,18 @@ function App() {
           else if (mins >= 840 && mins <= 1319) turno = "2 Turno";
       }
 
-      // CORREÇÃO: Alinhando chaves do JSON com o esperado pelo n8n ("Edit Fields Normal")
       const payload = {
-          id: nextId, // n8n espera "id"
-          usuario: currentUser?.Usuario || "Sistema", // n8n espera "usuario"
+          id: nextId,
+          usuario: currentUser?.Usuario || "Sistema",
           cia: data.cia,
-          dataHoraPuxado: formatForN8N(data.dataHoraPuxado), // Formata para SQL
-          dataHoraRecebido: formatForN8N(data.dataHoraRecebido), // Formata para SQL
-          cargasINH: data.cargasINH, // n8n espera "cargasINH"
-          cargasIZ: data.cargasIZ, // n8n espera "cargasIZ"
+          dataHoraPuxado: formatForN8N(data.dataHoraPuxado),
+          dataHoraRecebido: formatForN8N(data.dataHoraRecebido),
+          cargasINH: data.cargasINH,
+          cargasIZ: data.cargasIZ,
           status: "Manifesto Recebido",
           turno: turno,
-          'Carimbo_Data/HR': currentTimestamp, // n8n espera "Carimbo_Data/HR"
-          Action: "Registro de Dados", // ESSENCIAL para o Switch do n8n
+          'Carimbo_Data/HR': currentTimestamp,
+          Action: "Registro de Dados",
           Usuario_Action: currentUser?.Usuario || "Sistema",
           justificativa: "Cadastro Inicial"
       };
@@ -344,10 +311,10 @@ function App() {
       if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
       showAlert('success', "Manifesto enviado para processamento!");
+      trackPerformanceAction('cadastro');
       
-      // REFRESH: Garante espelhamento dos dados imediatamante
+      // Fetch imediato para feedback rápido
       await fetchManifestos();
-      setTimeout(() => fetchManifestos(), 1500); // Double check após 1.5s
 
     } catch (err: any) {
       console.error(err);
@@ -363,24 +330,18 @@ function App() {
 
     setLoadingMsg("Enviando edição ao n8n...");
     try {
-      // CORREÇÃO: Alinhando payload para edição
       const payload = {
          id: partialData.id,
-         usuario: currentUser?.Usuario, // Quem está editando
-         // Mapeando campos parciais se existirem
+         usuario: currentUser?.Usuario,
          cia: partialData.cia,
          dataHoraPuxado: formatForN8N(partialData.dataHoraPuxado),
          dataHoraRecebido: formatForN8N(partialData.dataHoraRecebido),
          cargasINH: partialData.cargasINH,
          cargasIZ: partialData.cargasIZ,
-         
-         // ADIÇÃO DE SEGURANÇA: Enviando também chaves com nome exato da coluna do banco
-         // caso o n8n esteja mapeando diretamente para elas na query de Update
          Manifesto_Puxado: formatForN8N(partialData.dataHoraPuxado),
          Manifesto_Recebido: formatForN8N(partialData.dataHoraRecebido),
-         
          justificativa: partialData.justificativa,
-         Action: "Edição de Dados", // ESSENCIAL para o Switch do n8n
+         Action: "Edição de Dados",
          Usuario_Action: currentUser?.Usuario,
          'Carimbo_Data/HR': getCurrentTimestampSQL()
       };
@@ -394,11 +355,9 @@ function App() {
       if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
       showAlert('success', "Edição enviada com sucesso!");
+      trackPerformanceAction('edicao');
       setEditingId(null);
-      
-      // REFRESH: Garante espelhamento dos dados imediatamante
       await fetchManifestos();
-      setTimeout(() => fetchManifestos(), 1500); // Double check após 1.5s
 
     } catch (err: any) {
       console.error(err);
@@ -429,9 +388,8 @@ function App() {
 
       setLoadingMsg("Processando cancelamento...");
       try {
-          // CORREÇÃO: Alinhando payload para cancelamento
           const payload = {
-             Action: "Excluir Dados", // ESSENCIAL para o Switch do n8n (caminho Cancelar Manifesto)
+             Action: "Excluir Dados",
              id: id,
              usuario: currentUser?.Usuario,
              Usuario_Action: currentUser?.Usuario,
@@ -448,10 +406,8 @@ function App() {
           if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
           showAlert('success', "Solicitação de cancelamento enviada!");
-
-          // REFRESH: Garante espelhamento dos dados imediatamante
+          trackPerformanceAction('cancelamento');
           await fetchManifestos();
-          setTimeout(() => fetchManifestos(), 1500); // Double check após 1.5s
 
       } catch (err: any) {
            console.error(err);
@@ -471,9 +427,8 @@ function App() {
 
       setLoadingMsg("Processando anulação...");
       try {
-          // CORREÇÃO: Alinhando payload para anulação
           const payload = {
-             Action: "Anular Status", // ESSENCIAL para o Switch do n8n
+             Action: "Anular Status",
              id: id,
              usuario: currentUser?.Usuario,
              Usuario_Action: currentUser?.Usuario,
@@ -490,10 +445,8 @@ function App() {
           if (!response.ok) throw new Error("Erro na comunicação com n8n");
 
           showAlert('success', "Solicitação de anulação enviada!");
-
-          // REFRESH: Garante espelhamento dos dados imediatamante
+          trackPerformanceAction('anulacao');
           await fetchManifestos();
-          setTimeout(() => fetchManifestos(), 1500); // Double check após 1.5s
 
       } catch (err: any) {
            console.error(err);
@@ -506,6 +459,8 @@ function App() {
   const handleOpenHistory = async (id: string) => {
     setViewingHistoryId(id);
     
+    // Mantemos essa requisição única para garantir que temos os dados mais frescos 
+    // possíveis ao abrir o detalhe, independente do polling da lista principal.
     try {
       const { data, error } = await supabase
         .from('SMO_Sistema')
@@ -543,6 +498,12 @@ function App() {
         openEdit={setEditingId}
         onShowAlert={showAlert}
         nextId={generateNextId(manifestos)}
+      />
+
+      <PerformanceMonitor 
+        manifestos={manifestos} 
+        isLoggedIn={isLoggedIn} 
+        currentUser={currentUser}
       />
 
       {editingId && (

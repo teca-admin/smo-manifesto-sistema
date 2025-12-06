@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { User as UserIcon, Lock, AlertCircle } from 'lucide-react';
+import { User as UserIcon, Lock, AlertCircle, Info } from 'lucide-react';
 import { User } from '../types';
 
 // ------------------------------------------------------------------
@@ -19,14 +19,14 @@ interface LoginScreenProps {
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loading, setLoading }) => {
   const [loginInput, setLoginInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<{msg: string, type: 'error' | 'info'}>({ msg: '', type: 'error' });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError({ msg: '', type: 'error' });
     
     if (!loginInput.trim() || !passwordInput.trim()) {
-      setError('Preencha login e senha!');
+      setError({ msg: 'Preencha login e senha!', type: 'error' });
       return;
     }
 
@@ -47,16 +47,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
       const dataHrEnvio = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       // 2. Envia para o n8n validar e salvar a sessão
-      // CORREÇÃO: Campos ajustados para corresponder ao nó "Edit Fields" do workflow n8n
       const response = await fetch(N8N_WEBHOOK_LOGIN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           usuario: loginInput,
           senha: passwordInput,
-          action: 'validar credencial', // Obrigatório para o Switch "Validar ou Logoff"
-          session_token: sessionToken,  // n8n espera "session_token" para mapear para "sesson_id"
-          'Data/hr do envio': dataHrEnvio // n8n espera "Data/hr do envio"
+          action: 'validar credencial',
+          session_token: sessionToken,
+          'Data/hr do envio': dataHrEnvio
         })
       });
 
@@ -64,14 +63,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
         throw new Error(`Erro de conexão com n8n: ${response.status}`);
       }
 
-      // Leitura segura da resposta (evita erro "Unexpected end of JSON input")
       const responseText = await response.text();
       
-      // DIAGNÓSTICO DE ERRO DO N8N:
-      // Se o status for 200 OK mas o texto estiver vazio, o fluxo do n8n parou no meio (provavelmente no Switch)
       if (!responseText) {
          console.error("Recebido 200 OK mas sem corpo de resposta.");
-         throw new Error("Erro de Fluxo: O n8n encontrou o usuário mas não retornou resposta. Verifique a regra 'Offline' no nó Switch do n8n.");
+         throw new Error("Erro de Fluxo: O n8n encontrou o usuário mas não retornou resposta.");
       }
 
       let data;
@@ -88,17 +84,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
       }
 
       // Tratamento específico para o fluxo "Bloqueia o Acesso" do n8n
-      // Se o n8n retornar apenas { Action: "Online" } sem dados do usuário, significa bloqueio.
+      // Agora trata como INFO, não ERRO FATAL
       if (data.Action === 'Online' && !data.id) {
-         throw new Error("Usuário já possui uma sessão ativa. Tente entrar novamente para forçar a desconexão da sessão anterior.");
+         setLoading(false);
+         // Não limpa a senha para facilitar o re-clique
+         setError({ 
+            msg: "Sessão anterior detectada. Clique em 'Entrar' novamente para conectar neste dispositivo.", 
+            type: 'info' 
+         });
+         return; 
       }
 
-      // 3. Monta o objeto de usuário autenticado
-      // O n8n pode retornar os dados dentro de 'user', ou no array [0], ou no próprio objeto root (como no seu caso)
       const userFound = data.user || (data.id ? data : null) || (Array.isArray(data) ? data[0] : null) || {}; 
       
       if (!userFound.id && !userFound.Usuario) {
-         // Fallback: Se não retornou ID mas não deu erro explícito, algo está errado na estrutura
          throw new Error("Credenciais inválidas ou erro na estrutura de retorno do n8n.");
       }
       
@@ -106,7 +105,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
         id: userFound.id || 0,
         Usuario: userFound.Usuario || loginInput,
         Nome_Completo: userFound.Nome_Completo || "Usuário",
-        Senha: passwordInput, // Mantendo compatibilidade com interface
+        Senha: passwordInput,
         sesson_id: sessionToken, 
         "Session_Data/HR": dataHrEnvio
       };
@@ -115,7 +114,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
 
     } catch (err: any) {
       console.error("Erro no login:", err);
-      setError(err.message || 'Falha ao realizar login.');
+      setError({ msg: err.message || 'Falha ao realizar login.', type: 'error' });
       setLoading(false);
     }
   };
@@ -180,11 +179,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
               </button>
             </form>
             
-            {error && (
-              <div className="mt-[20px] p-[12px] bg-red-50 border border-red-200 rounded-[8px] flex items-start gap-3 animate-fadeInScale shadow-sm">
-                <AlertCircle size={18} className="text-red-600 mt-[1px] shrink-0" />
-                <span className="text-[13px] text-red-700 font-medium leading-snug text-left">
-                  {error}
+            {error.msg && (
+              <div className={`mt-[20px] p-[12px] rounded-[8px] flex items-start gap-3 animate-fadeInScale shadow-sm border ${
+                  error.type === 'error' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
+              }`}>
+                {error.type === 'error' ? (
+                   <AlertCircle size={18} className="text-red-600 mt-[1px] shrink-0" />
+                ) : (
+                   <Info size={18} className="text-blue-600 mt-[1px] shrink-0" />
+                )}
+                <span className={`text-[13px] font-medium leading-snug text-left ${
+                    error.type === 'error' ? 'text-red-700' : 'text-blue-700'
+                }`}>
+                  {error.msg}
                 </span>
               </div>
             )}

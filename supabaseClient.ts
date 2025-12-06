@@ -1,4 +1,5 @@
 
+
 import { createClient } from '@supabase/supabase-js';
 
 // ------------------------------------------------------------------
@@ -15,8 +16,12 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = 'https://teca-admin-supabase.ly7t0m.easypanel.host/'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE';
 
-// Define o schema do banco de dados onde estão as tabelas do sistema
+// Define o schema do banco de dados onde estão as tabelas do sistema PRINCIPAL
 export const DB_SCHEMA = 'SMO_Sistema_de_Manifesto_Operacional';
+
+// Define o schema do banco de dados onde estão os logs de performance
+// ATUALIZADO: Usando o mesmo schema permitido para evitar erro de permissão da API
+export const PERFORMANCE_SCHEMA = 'SMO_Sistema_de_Manifesto_Operacional';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
@@ -25,6 +30,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     detectSessionInUrl: true
   },
   db: {
-    schema: DB_SCHEMA // Define o schema padrão para todas as consultas
+    schema: DB_SCHEMA // Define o schema padrão para todas as consultas (pode ser sobrescrito)
   }
 });

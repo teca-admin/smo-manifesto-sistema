@@ -1,4 +1,5 @@
 
+
 export interface Manifesto {
   id: string;
   usuario: string;
@@ -28,6 +29,21 @@ export interface ManifestoLog {
   acao: string;
   justificativa?: string;
   idManifesto: string;
+}
+
+export interface PerformanceLogDB {
+  data: string;
+  total_requisicoes: number;
+  total_n8n: number;
+  banda_mb: number;
+  usuarios_unicos: string[]; // JSONB array no banco
+  // Novos campos para detalhamento
+  total_cadastro?: number;
+  total_edicao?: number;
+  total_cancelamento?: number;
+  total_anulacao?: number;
+  total_login?: number;
+  total_logoff?: number;
 }
 
 // Interface atualizada conforme sua tabela 'Cadastro_de_Perfil' no Supabase e CSV fornecido
