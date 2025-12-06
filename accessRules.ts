@@ -3,12 +3,12 @@ import { User } from './types';
 
 /**
  * LISTA DE USUÁRIOS AUTORIZADOS
- * Adicione aqui os nomes de usuário (Login) que podem ver o monitoramento.
- * A verificação não diferencia maiúsculas de minúsculas (case-insensitive).
+ * Adicione aqui os nomes EXATOS (Login ou Nome Completo) que podem ver o monitoramento.
+ * A verificação é EXATA (Case-sensitive e sem variações).
  */
 const PERFORMANCE_MONITOR_ALLOWLIST = [
-  'Rafael',
-  'Rick'
+  'Rafael Rodrigues',
+  'Rick Claudio'
 ];
 
 /**
@@ -17,15 +17,19 @@ const PERFORMANCE_MONITOR_ALLOWLIST = [
  * @returns boolean
  */
 export const canAccessPerformanceMonitor = (user: User | null): boolean => {
-  if (!user || !user.Usuario) return false;
-  
-  // Normaliza para minúsculas para evitar erros de digitação
-  const currentLogin = user.Usuario.toLowerCase().trim();
-  
-  // Verifica se o login atual CONTÉM algum dos nomes permitidos
-  // Ex: "Rafael Rodrigues" contém "Rafael" -> Aprovado
-  // Ex: "Rick" contém "Rick" -> Aprovado
-  return PERFORMANCE_MONITOR_ALLOWLIST.some(
-    allowedLogin => currentLogin.includes(allowedLogin.toLowerCase())
-  );
+  if (!user) return false;
+
+  // Verificação Exata (Login)
+  // Se o Login for exatamente igual a um dos nomes da lista
+  if (user.Usuario && PERFORMANCE_MONITOR_ALLOWLIST.includes(user.Usuario)) {
+    return true;
+  }
+
+  // Verificação Exata (Nome Completo)
+  // Se o Nome Completo for exatamente igual a um dos nomes da lista
+  if (user.Nome_Completo && PERFORMANCE_MONITOR_ALLOWLIST.includes(user.Nome_Completo)) {
+    return true;
+  }
+
+  return false;
 };
