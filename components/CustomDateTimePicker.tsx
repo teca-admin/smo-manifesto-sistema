@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Clock } from 'lucide-react';
@@ -65,9 +64,12 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
       const scrollY = window.scrollY || document.documentElement.scrollTop;
       const scrollX = window.scrollX || document.documentElement.scrollLeft;
       
+      // Fix: 'zoom' does not exist on type 'CSSStyleDeclaration'. Cast to any.
+      const zoom = parseFloat((window.getComputedStyle(document.body) as any).zoom) || 1;
+
       setCoords({
-        top: rect.bottom + scrollY + 5,
-        left: rect.left + scrollX
+        top: (rect.bottom + scrollY) / zoom + 5,
+        left: (rect.left + scrollX) / zoom
       });
     }
   }, [isOpen]);

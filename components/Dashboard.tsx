@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Manifesto, User } from '../types';
@@ -134,17 +133,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const scrollY = window.scrollY || document.documentElement.scrollTop;
       const scrollX = window.scrollX || document.documentElement.scrollLeft;
 
-      const distRight = window.innerWidth - rect.right;
+      // Compensate for body zoom
+      const zoom = parseFloat((window.getComputedStyle(document.body) as any).zoom) || 1;
+      
+      // Use visualViewport for more accurate edge detection with zoom
+      const viewportWidth = window.visualViewport?.width || window.innerWidth;
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+
+      // Determine if we are near the right edge
+      const distRight = viewportWidth - rect.right;
       const isRightEdge = distRight < 250;
 
       // Check if button is near bottom of viewport
-      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceBelow = viewportHeight - rect.bottom;
       // Assume menu height approx 220px. If less space, open upwards.
       const showAbove = spaceBelow < 220;
 
+      // Apply zoom correction to coordinates
+      // We divide by zoom because the absolute positioned element will be scaled up by the body zoom
       setMenuPosition({
-          top: showAbove ? (rect.top + scrollY - 5) : (rect.bottom + scrollY + 5),
-          left: isRightEdge ? (rect.right + scrollX) : (rect.left + scrollX + (rect.width / 2)),
+          top: showAbove ? ((rect.top + scrollY) / zoom - 5) : ((rect.bottom + scrollY) / zoom + 5),
+          left: isRightEdge ? ((rect.right + scrollX) / zoom) : ((rect.left + scrollX + (rect.width / 2)) / zoom),
           align: isRightEdge ? 'right' : 'center',
           verticalAlign: showAbove ? 'bottom' : 'top'
       });

@@ -39,9 +39,6 @@ function App() {
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
   
-  // Estado para controle de erro no Realtime
-  const [realtimeConnectionError, setRealtimeConnectionError] = useState(false);
-
   const getCurrentTimestampSQL = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -153,11 +150,10 @@ function App() {
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           console.log("✅ Conectado ao Realtime de Manifestos.");
-          setRealtimeConnectionError(false);
         } else if (status === 'CHANNEL_ERROR') {
-          console.error("❌ Erro no canal de Manifestos:", err);
-          // Ativa o fallback de polling
-          setRealtimeConnectionError(true);
+          console.warn("⚠️ Aviso: Canal Realtime desconectado (Manifestos).", err);
+        } else if (status === 'TIMED_OUT') {
+           console.warn("⚠️ Aviso: Timeout no Realtime (Manifestos).");
         }
       });
 
@@ -165,17 +161,6 @@ function App() {
       supabase.removeChannel(channel);
     };
   }, [isLoggedIn, fetchManifestos]);
-
-  // Fallback Polling quando Realtime falha
-  useEffect(() => {
-    if (isLoggedIn && realtimeConnectionError) {
-      console.log("⚠️ Realtime indisponível. Ativando polling (5s)...");
-      const interval = setInterval(() => {
-        fetchManifestos();
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isLoggedIn, realtimeConnectionError, fetchManifestos]);
 
   // ************************************************************************************************
   // 🚨 SISTEMA DE SEGURANÇA HÍBRIDO (EVENT-DRIVEN + REALTIME) 🚨
@@ -239,7 +224,11 @@ function App() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+             console.warn("⚠️ Aviso: Canal Realtime desconectado (Segurança). Mantendo verificações por interação.");
+         }
+      });
 
     // 2. CHECK POR INTERAÇÃO (Plano B - "Sentinela")
     // Verifica a sessão sempre que o usuário "toca" no sistema (foco, clique).
