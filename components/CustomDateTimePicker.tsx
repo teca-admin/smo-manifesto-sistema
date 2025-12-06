@@ -406,11 +406,6 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
         </div>,
         document.body
       )}
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f9f9f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
-      `}</style>
     </div>
   );
 };

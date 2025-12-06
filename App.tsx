@@ -50,6 +50,12 @@ function App() {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   };
 
+  const formatForN8N = (dateStr?: string) => {
+    if (!dateStr) return undefined;
+    // Garante formato compatível com SQL removendo o 'T' ISO
+    return dateStr.replace('T', ' ');
+  };
+
   const generateNextId = (currentList: Manifesto[]) => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2); 
@@ -317,8 +323,8 @@ function App() {
           id: nextId, // n8n espera "id"
           usuario: currentUser?.Usuario || "Sistema", // n8n espera "usuario"
           cia: data.cia,
-          dataHoraPuxado: data.dataHoraPuxado, // n8n espera "dataHoraPuxado"
-          dataHoraRecebido: data.dataHoraRecebido, // n8n espera "dataHoraRecebido"
+          dataHoraPuxado: formatForN8N(data.dataHoraPuxado), // Formata para SQL
+          dataHoraRecebido: formatForN8N(data.dataHoraRecebido), // Formata para SQL
           cargasINH: data.cargasINH, // n8n espera "cargasINH"
           cargasIZ: data.cargasIZ, // n8n espera "cargasIZ"
           status: "Manifesto Recebido",
@@ -341,6 +347,7 @@ function App() {
       
       // REFRESH: Garante espelhamento dos dados imediatamante
       await fetchManifestos();
+      setTimeout(() => fetchManifestos(), 1500); // Double check após 1.5s
 
     } catch (err: any) {
       console.error(err);
@@ -362,10 +369,15 @@ function App() {
          usuario: currentUser?.Usuario, // Quem está editando
          // Mapeando campos parciais se existirem
          cia: partialData.cia,
-         dataHoraPuxado: partialData.dataHoraPuxado,
-         dataHoraRecebido: partialData.dataHoraRecebido,
+         dataHoraPuxado: formatForN8N(partialData.dataHoraPuxado),
+         dataHoraRecebido: formatForN8N(partialData.dataHoraRecebido),
          cargasINH: partialData.cargasINH,
          cargasIZ: partialData.cargasIZ,
+         
+         // ADIÇÃO DE SEGURANÇA: Enviando também chaves com nome exato da coluna do banco
+         // caso o n8n esteja mapeando diretamente para elas na query de Update
+         Manifesto_Puxado: formatForN8N(partialData.dataHoraPuxado),
+         Manifesto_Recebido: formatForN8N(partialData.dataHoraRecebido),
          
          justificativa: partialData.justificativa,
          Action: "Edição de Dados", // ESSENCIAL para o Switch do n8n
@@ -386,6 +398,7 @@ function App() {
       
       // REFRESH: Garante espelhamento dos dados imediatamante
       await fetchManifestos();
+      setTimeout(() => fetchManifestos(), 1500); // Double check após 1.5s
 
     } catch (err: any) {
       console.error(err);
@@ -438,6 +451,7 @@ function App() {
 
           // REFRESH: Garante espelhamento dos dados imediatamante
           await fetchManifestos();
+          setTimeout(() => fetchManifestos(), 1500); // Double check após 1.5s
 
       } catch (err: any) {
            console.error(err);
@@ -479,6 +493,7 @@ function App() {
 
           // REFRESH: Garante espelhamento dos dados imediatamante
           await fetchManifestos();
+          setTimeout(() => fetchManifestos(), 1500); // Double check após 1.5s
 
       } catch (err: any) {
            console.error(err);
