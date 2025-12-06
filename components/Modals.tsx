@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Manifesto } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
@@ -35,31 +36,34 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
     cargasIZ: data.cargasIZ.toString()
   });
   const [justificativa, setJustificativa] = React.useState('');
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const handleSave = () => {
+    setErrorMsg(null);
+
     // Validações de campos vazios
     if (!formData.cia) {
-      alert("O campo CIA é obrigatório!");
+      setErrorMsg("O campo CIA é obrigatório!");
       return;
     }
     if (!formData.dataHoraPuxado) {
-      alert("O campo Data/Hora (Manifesto Puxado) é obrigatório!");
+      setErrorMsg("O campo Data/Hora (Manifesto Puxado) é obrigatório!");
       return;
     }
     if (!formData.dataHoraRecebido) {
-      alert("O campo Data/Hora (Manifesto Recebido) é obrigatório!");
+      setErrorMsg("O campo Data/Hora (Manifesto Recebido) é obrigatório!");
       return;
     }
     if (formData.cargasINH === '') {
-      alert("O campo Cargas IN/H é obrigatório!");
+      setErrorMsg("O campo Cargas IN/H é obrigatório!");
       return;
     }
     if (formData.cargasIZ === '') {
-      alert("O campo Cargas IZ é obrigatório!");
+      setErrorMsg("O campo Cargas IZ é obrigatório!");
       return;
     }
     if (justificativa.length < 10) {
-      alert("A justificativa é obrigatória e deve ter no mínimo 10 caracteres.");
+      setErrorMsg("A justificativa é obrigatória e deve ter no mínimo 10 caracteres.");
       return;
     }
 
@@ -113,7 +117,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
             <label className="block mb-[6px] font-semibold text-[13px] text-[#333]">CIA:</label>
             <CustomSelect 
                value={formData.cia} 
-               onChange={(val) => setFormData({...formData, cia: val})}
+               onChange={(val) => { setFormData({...formData, cia: val}); if(errorMsg) setErrorMsg(null); }}
                placeholder="Selecione a CIA"
             />
           </div>
@@ -121,7 +125,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
              <label className="block mb-[6px] font-semibold text-[13px] text-[#333]">Data/Hora (Manifesto Puxado):</label>
              <CustomDateTimePicker 
                value={formData.dataHoraPuxado} 
-               onChange={(val) => setFormData({...formData, dataHoraPuxado: val})}
+               onChange={(val) => { setFormData({...formData, dataHoraPuxado: val}); if(errorMsg) setErrorMsg(null); }}
                placeholder="dd/mm/aaaa --:--"
              />
           </div>
@@ -129,7 +133,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
              <label className="block mb-[6px] font-semibold text-[13px] text-[#333]">Data/Hora (Manifesto Recebido):</label>
              <CustomDateTimePicker 
                value={formData.dataHoraRecebido} 
-               onChange={(val) => setFormData({...formData, dataHoraRecebido: val})}
+               onChange={(val) => { setFormData({...formData, dataHoraRecebido: val}); if(errorMsg) setErrorMsg(null); }}
                placeholder="dd/mm/aaaa --:--"
              />
           </div>
@@ -139,7 +143,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
                 <input 
                   type="number" 
                   value={formData.cargasINH} 
-                  onChange={e => setFormData({...formData, cargasINH: e.target.value})} 
+                  onChange={e => { setFormData({...formData, cargasINH: e.target.value}); if(errorMsg) setErrorMsg(null); }}
                   className="w-full p-[10px_12px] border-2 border-[#e0e0e0] rounded-[8px] text-[13px] text-gray-900 bg-white" 
                 />
              </div>
@@ -148,7 +152,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
                 <input 
                   type="number" 
                   value={formData.cargasIZ} 
-                  onChange={e => setFormData({...formData, cargasIZ: e.target.value})} 
+                  onChange={e => { setFormData({...formData, cargasIZ: e.target.value}); if(errorMsg) setErrorMsg(null); }}
                   className="w-full p-[10px_12px] border-2 border-[#e0e0e0] rounded-[8px] text-[13px] text-gray-900 bg-white" 
                 />
              </div>
@@ -157,12 +161,19 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
             <label className="block mb-[6px] font-semibold text-[13px] text-[#333]">Justificativa (obrigatória - mín. 10 caracteres):</label>
             <textarea 
               value={justificativa}
-              onChange={e => setJustificativa(e.target.value)}
+              onChange={e => { setJustificativa(e.target.value); if(errorMsg) setErrorMsg(null); }}
               placeholder="Digite o motivo da edição..." 
-              className="w-full h-[90px] p-[10px_12px] border-2 border-[#e0e0e0] rounded-[8px] text-[13px] resize-y focus:outline-none focus:border-[#690c76] focus:shadow-[0_0_0_3px_rgba(105,12,118,0.1)] transition-all text-gray-900 bg-white"
+              className={`w-full h-[90px] p-[10px_12px] border-2 ${errorMsg && errorMsg.includes('justificativa') ? 'border-[#dc3545]' : 'border-[#e0e0e0]'} rounded-[8px] text-[13px] resize-y focus:outline-none focus:border-[#690c76] focus:shadow-[0_0_0_3px_rgba(105,12,118,0.1)] transition-all text-gray-900 bg-white`}
             ></textarea>
           </div>
         </div>
+
+        {errorMsg && (
+          <div className="mt-[15px] p-[10px_12px] bg-[#dc3545]/10 border border-[#dc3545]/20 rounded-[8px] flex items-center gap-[8px] text-[#dc3545] text-[13px] font-semibold animate-fadeInScale">
+             <AlertTriangle size={16} className="shrink-0" />
+             <span>{errorMsg}</span>
+          </div>
+        )}
 
         <div className="flex gap-[12px] mt-[25px]">
           <button onClick={onClose} className="flex-1 bg-[#6c757d] text-white border-none p-[12px] rounded-[8px] font-semibold text-[14px] cursor-pointer hover:bg-[#5a6268] transition-all">Cancelar</button>
@@ -370,7 +381,7 @@ export const CancellationModal: React.FC<{ onConfirm: (justificativa: string) =>
              <textarea
                 value={justificativa}
                 onChange={(e) => setJustificativa(e.target.value)}
-                placeholder="Motivo do cancelamento..."
+                placeholder="Motivo da cancelamento..."
                 className="w-full h-[100px] p-[12px] border-2 border-[#e0e0e0] rounded-[12px] text-[14px] resize-none focus:outline-none focus:border-[#dc3545] focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)] transition-all mb-[20px] bg-gray-50 text-gray-900"
                 autoFocus
              />
