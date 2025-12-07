@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Manifesto, User } from '../types';
@@ -341,7 +340,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {(() => {
               const currentM = manifestos.find(m => m.id === menuOpenId);
               // Enable for any status EXCEPT 'Manifesto Recebido'
-              const canAnular = currentM && currentM.status !== 'Manifesto Recebido';
+              // Explicitly ensuring 'Manifesto Iniciado' is allowed per user request
+              const canAnular = currentM && (currentM.status?.trim() !== 'Manifesto Recebido' || currentM.status === 'Manifesto Iniciado');
               
               return (
                 <button 

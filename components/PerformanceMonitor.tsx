@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity, Server, Database, AlertTriangle, ShieldCheck, X, Zap, List, RefreshCw, Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, User, Users, CalendarDays, BarChart2, PlusCircle, Edit, XCircle, RotateCcw, LogIn, LogOut, CalendarRange } from 'lucide-react';
 import { Manifesto, PerformanceLogDB, User as UserType } from '../types';
@@ -79,6 +78,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); 
   
   // Define isToday early for use in render
+  // Note: strict check might be affected if user crosses midnight, but re-render fixes it
   const isToday = selectedDate === getLocalDateStr();
   
   // --- STATES DE DADOS ---
@@ -89,6 +89,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
   
   // --- REALTIME COUNTERS (Sessão Local) ---
   const [requestCountSession, setRequestCountSession] = useState(0); 
+  const [updateTrigger, setUpdateTrigger] = useState(0); // Used to force UI refresh on actions
   
   // --- BUFFER (Para envio ao BD) ---
   const bufferReqs = useRef(0);
@@ -121,6 +122,9 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
           }
           // Incrementa contador geral de N8N
           bufferN8N.current++;
+          
+          // Force immediate re-render of UI
+          setUpdateTrigger(prev => prev + 1);
        }
     };
 
