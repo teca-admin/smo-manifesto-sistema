@@ -77,6 +77,7 @@ export interface SMO_Sistema_DB {
   "Carimbo_Data/HR"?: string; // Novo campo mapeado do banco
   "Usuario_Operação"?: string; // Novo campo mapeado do banco
   Usuario_Action?: string; // Novo campo mapeado do banco
+  "Usuario_Ação"?: string; // Coluna específica com acento conforme banco de dados
   
   // Colunas específicas de datas da Timeline
   Manifesto_Iniciado?: string;

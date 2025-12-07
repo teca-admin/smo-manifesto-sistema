@@ -139,7 +139,8 @@ function App() {
     turno: item.Turno,
     carimboDataHR: item["Carimbo_Data/HR"],
     usuarioOperacao: item["Usuario_Operação"],
-    usuarioAcao: item.Usuario_Action, // Mapeamento novo
+    // Atualizado para buscar prioritariamente da coluna com acento
+    usuarioAcao: item["Usuario_Ação"] || item.Usuario_Action, 
     dataHoraIniciado: item.Manifesto_Iniciado,
     dataHoraDisponivel: item.Manifesto_Disponivel,
     dataHoraConferencia: item["Manifesto_em_Conferência"],
@@ -351,7 +352,6 @@ function App() {
          Manifesto_Recebido: formatForN8N(partialData.dataHoraRecebido),
          justificativa: partialData.justificativa,
          Action: "Edição de Dados",
-         // Alterado para usar Nome Completo
          Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
          'Carimbo_Data/HR': getCurrentTimestampSQL()
       };
@@ -402,7 +402,6 @@ function App() {
              Action: "Excluir Dados",
              id: id,
              usuario: currentUser?.Usuario,
-             // Alterado para usar Nome Completo
              Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
              justificativa: justificativa,
              'Carimbo_Data/HR': getCurrentTimestampSQL()
@@ -442,7 +441,6 @@ function App() {
              Action: "Anular Status",
              id: id,
              usuario: currentUser?.Usuario,
-             // Alterado para usar Nome Completo
              Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
              justificativa: justificativa,
              'Carimbo_Data/HR': getCurrentTimestampSQL()

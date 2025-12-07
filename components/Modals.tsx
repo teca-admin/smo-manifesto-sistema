@@ -266,11 +266,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ data, onClose }) => 
                         <span className="text-[#666] text-[13px]">Usuário Sistema:</span>
                         <span className="text-[#333] text-[13px] font-bold">{data.usuario}</span>
                      </div>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">Usuário Operação:</span>
-                        <span className="text-[#333] text-[13px] font-bold">{data.usuarioOperacao || "Não informado"}</span>
-                     </div>
-                     {/* Novo Campo Adicionado */}
+                     {/* Campo Substituído: Usuário Ação */}
                      <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
                         <span className="text-[#666] text-[13px]">Usuário Ação:</span>
                         <span className="text-[#333] text-[13px] font-bold">{data.usuarioAcao || "Não informado"}</span>
