@@ -1,4 +1,3 @@
-
 import { User } from './types';
 
 /**
@@ -8,6 +7,7 @@ import { User } from './types';
  */
 const PERFORMANCE_MONITOR_ALLOWLIST = [
   'Rafael Rodrigues',
+  'Rafael Abraão Souza Rodrigues',
   'Rick Claudio'
 ];
 

@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
@@ -308,7 +306,8 @@ function App() {
           turno: turno,
           'Carimbo_Data/HR': currentTimestamp,
           Action: "Registro de Dados",
-          Usuario_Action: currentUser?.Usuario || "Sistema",
+          // Alterado para usar Nome Completo
+          Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario || "Sistema",
           justificativa: "Cadastro Inicial"
       };
 
@@ -352,7 +351,8 @@ function App() {
          Manifesto_Recebido: formatForN8N(partialData.dataHoraRecebido),
          justificativa: partialData.justificativa,
          Action: "Edição de Dados",
-         Usuario_Action: currentUser?.Usuario,
+         // Alterado para usar Nome Completo
+         Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
          'Carimbo_Data/HR': getCurrentTimestampSQL()
       };
 
@@ -402,7 +402,8 @@ function App() {
              Action: "Excluir Dados",
              id: id,
              usuario: currentUser?.Usuario,
-             Usuario_Action: currentUser?.Usuario,
+             // Alterado para usar Nome Completo
+             Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
              justificativa: justificativa,
              'Carimbo_Data/HR': getCurrentTimestampSQL()
           };
@@ -441,7 +442,8 @@ function App() {
              Action: "Anular Status",
              id: id,
              usuario: currentUser?.Usuario,
-             Usuario_Action: currentUser?.Usuario,
+             // Alterado para usar Nome Completo
+             Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
              justificativa: justificativa,
              'Carimbo_Data/HR': getCurrentTimestampSQL()
           };
