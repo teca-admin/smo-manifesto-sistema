@@ -19,6 +19,50 @@ interface ExtendedPerformanceLog extends PerformanceLogDB {
   dailyHistory?: ExtendedPerformanceLog[]; 
 }
 
+/*
+  =====================================================================================
+  ⚠️ IMPORTANTE: ATUALIZAÇÃO DE SQL NECESSÁRIA PARA SUPORTE A FUSO HORÁRIO
+  
+  Rode este script no Supabase SQL Editor para corrigir o problema onde
+  o horário UTC do servidor grava dados no "dia seguinte":
+
+  DROP FUNCTION IF EXISTS "SMO_Sistema_de_Manifesto_Operacional".registrar_metricas(int, int, numeric, text, text, timestamptz, int, int, int, int, int, int);
+
+  CREATE OR REPLACE FUNCTION "SMO_Sistema_de_Manifesto_Operacional".registrar_metricas(
+    p_reqs int, p_n8n int, p_banda numeric, p_usuario text, p_hora text, p_timestamp_iso timestamptz,
+    p_cadastro int default 0, p_edicao int default 0, p_cancelamento int default 0, p_anulacao int default 0,
+    p_login int default 0, p_logoff int default 0,
+    p_data_local date default null
+  ) returns void as $$
+  declare
+    v_data_final date;
+  begin
+    v_data_final := coalesce(p_data_local, current_date);
+    insert into "SMO_Sistema_de_Manifesto_Operacional"."Log_Performance_SMO_Sistema" (data, usuarios_unicos, detalhes_hora)
+    values (v_data_final, '[]'::jsonb, '{}'::jsonb) on conflict (data) do nothing;
+
+    update "SMO_Sistema_de_Manifesto_Operacional"."Log_Performance_SMO_Sistema"
+    set 
+      total_requisicoes = total_requisicoes + p_reqs,
+      total_n8n = total_n8n + p_n8n,
+      banda_mb = banda_mb + p_banda,
+      ultima_atualizacao = p_timestamp_iso,
+      total_cadastro = total_cadastro + p_cadastro,
+      total_edicao = total_edicao + p_edicao,
+      total_cancelamento = total_cancelamento + p_cancelamento,
+      total_anulacao = total_anulacao + p_anulacao,
+      total_login = total_login + p_login,
+      total_logoff = total_logoff + p_logoff,
+      usuarios_unicos = case when usuarios_unicos @> to_jsonb(p_usuario) then usuarios_unicos else usuarios_unicos || to_jsonb(p_usuario) end,
+      detalhes_hora = jsonb_set(coalesce(detalhes_hora, '{}'::jsonb), array[p_hora], to_jsonb(coalesce((detalhes_hora->>p_hora)::int, 0) + p_reqs))
+    where data = v_data_final;
+  end;
+  $$ language plpgsql;
+
+  grant execute on function "SMO_Sistema_de_Manifesto_Operacional".registrar_metricas to anon, authenticated, service_role;
+  =====================================================================================
+*/
+
 export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifestos, isLoggedIn, currentUser }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -118,6 +162,12 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
        const horaLocal = String(now.getHours()).padStart(2, '0');
        const timestampLocalISO = now.toISOString();
 
+       // Calcula a Data Local no formato YYYY-MM-DD para forçar a gravação no dia correto (Fuso Horário)
+       const year = now.getFullYear();
+       const month = String(now.getMonth() + 1).padStart(2, '0');
+       const day = String(now.getDate()).padStart(2, '0');
+       const dataLocal = `${year}-${month}-${day}`;
+
        try {
          const { error } = await supabase
             .schema(PERFORMANCE_SCHEMA)
@@ -128,13 +178,15 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
                 p_usuario: currentUser.Usuario || 'Anon',
                 p_hora: horaLocal,
                 p_timestamp_iso: timestampLocalISO,
-                // Novos parâmetros
+                // Novos parâmetros de ações
                 p_cadastro: actionsToSend.cadastro,
                 p_edicao: actionsToSend.edicao,
                 p_cancelamento: actionsToSend.cancelamento,
                 p_anulacao: actionsToSend.anulacao,
                 p_login: 0, // Login gerido pelo App.tsx
-                p_logoff: 0 // Logoff gerido pelo App.tsx
+                p_logoff: 0, // Logoff gerido pelo App.tsx
+                // Novo parâmetro de Data Local
+                p_data_local: dataLocal
             });
 
          if (error) {
@@ -147,7 +199,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
             bufferActions.current.edicao += actionsToSend.edicao;
             bufferActions.current.cancelamento += actionsToSend.cancelamento;
             bufferActions.current.anulacao += actionsToSend.anulacao;
-            // Não devolve login/logoff pois não são geridos aqui
          } else {
             if (isOpen && selectedDate === new Date().toISOString().split('T')[0] && viewMode === 'day') {
                 fetchStats(selectedDate, 'day');
@@ -280,6 +331,37 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
       setSelectedDate(d.toISOString().split('T')[0]);
   };
 
+  // --- FORMATAÇÃO DE DISPLAY DO DATE RANGE (USADO NO HEADER E BREAKDOWN) ---
+  const getDisplayRangeInfo = () => {
+      if (viewMode === 'day') {
+          const d = new Date(selectedDate);
+          const userTimezoneOffset = d.getTimezoneOffset() * 60000;
+          const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
+          const dateStr = adjustedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          return { label: dateStr, suffix: isToday ? 'HOJE' : '' };
+      } else if (viewMode === 'month') {
+          const d = new Date(selectedDate);
+          const userTimezoneOffset = d.getTimezoneOffset() * 60000;
+          const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
+          return { label: adjustedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase(), suffix: '' };
+      } else {
+          // Semana: Calcula Intervalo
+          const curr = new Date(selectedDate + 'T00:00:00Z');
+          const day = curr.getUTCDay();
+          const diff = curr.getUTCDate() - day + (day === 0 ? -6 : 1);
+          const monday = new Date(curr);
+          monday.setUTCDate(diff);
+          const sunday = new Date(monday);
+          sunday.setUTCDate(monday.getUTCDate() + 6);
+
+          const fmt = (dt: Date) => {
+              const localDt = new Date(dt.getTime() + dt.getTimezoneOffset() * 60000); 
+              return localDt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          }
+          return { label: `${fmt(monday)} A ${fmt(sunday)}`, suffix: '' };
+      }
+  };
+
   // --- RENDERIZADORES DE GRÁFICO ---
 
   // 1. Gráfico de Polling (Linha/Barra simples) - Modo DIA
@@ -288,7 +370,8 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
 
     const labels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
     const values = Object.values(stats.detalhes_hora);
-    const maxVal = Math.max(...values, 10);
+    // AJUSTE: Removemos o limite mínimo de 10 para 1. Agora o gráfico sobe proporcionalmente mesmo com poucos dados.
+    const maxVal = Math.max(...values, 1);
 
     return (
       <div className="flex items-end justify-between h-[120px] gap-[2px] mt-4 border-b border-gray-700 pb-2">
@@ -350,7 +433,8 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
         const total = (day.total_cadastro||0) + (day.total_edicao||0) + (day.total_cancelamento||0) + (day.total_anulacao||0);
         if (total > maxTotalActions) maxTotalActions = total;
     });
-    maxTotalActions = Math.max(maxTotalActions, 5); // Min scale
+    // AJUSTE: Removemos o limite mínimo de 5 para 1. Agora o gráfico sobe proporcionalmente mesmo com poucos dados.
+    maxTotalActions = Math.max(maxTotalActions, 1); 
 
     return (
       <div className="flex items-end justify-between h-[120px] gap-[2px] mt-4 border-b border-gray-700 pb-2">
@@ -379,7 +463,10 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
                      )}
                      
                      {/* Stacked Bars */}
-                     <div className="w-full flex flex-col-reverse bg-gray-800/30 rounded-t-sm overflow-hidden" style={{height: `${(total/maxTotalActions)*100}%`}}>
+                     <div className="w-full flex flex-col-reverse bg-gray-800/30 rounded-t-sm overflow-hidden relative" style={{height: `${(total/maxTotalActions)*100}%`}}>
+                         {/* Barra invisível de tamanho mínimo para facilitar o hover em valores baixos */}
+                         <div className="absolute w-full h-[10px] bottom-0 z-0 opacity-0 group-hover:opacity-10 bg-white/10 pointer-events-none"></div>
+
                          {cad > 0 && <div style={{height: `${(cad/total)*100}%`}} className="bg-blue-500 w-full"></div>}
                          {edit > 0 && <div style={{height: `${(edit/total)*100}%`}} className="bg-orange-500 w-full"></div>}
                          {anul > 0 && <div style={{height: `${(anul/total)*100}%`}} className="bg-yellow-500 w-full"></div>}
@@ -401,13 +488,25 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
   const renderActionBreakdown = () => {
     // Dados para exibir (Dia, Semana ou Mês)
     const d = stats || {} as ExtendedPerformanceLog;
+    
+    // Calcula valores baseados no histórico diário se estiver em modo agregado,
+    // para garantir consistência visual estrita com o gráfico.
+    let displayStats = {
+      total_cadastro: d.total_cadastro || 0,
+      total_edicao: d.total_edicao || 0,
+      total_cancelamento: d.total_cancelamento || 0,
+      total_anulacao: d.total_anulacao || 0,
+      total_login: d.total_login || 0,
+      total_logoff: d.total_logoff || 0
+    };
+
     const actions = [
-       { label: 'Cadastros', count: d.total_cadastro || 0, color: 'text-blue-500', bg: 'bg-blue-500/10', icon: PlusCircle },
-       { label: 'Edições', count: d.total_edicao || 0, color: 'text-orange-500', bg: 'bg-orange-500/10', icon: Edit },
-       { label: 'Cancelamentos', count: d.total_cancelamento || 0, color: 'text-red-500', bg: 'bg-red-500/10', icon: XCircle },
-       { label: 'Anulações', count: d.total_anulacao || 0, color: 'text-yellow-500', bg: 'bg-yellow-500/10', icon: RotateCcw },
-       { label: 'Logins', count: d.total_login || 0, color: 'text-green-500', bg: 'bg-green-500/10', icon: LogIn },
-       { label: 'Logoffs', count: d.total_logoff || 0, color: 'text-gray-400', bg: 'bg-gray-500/10', icon: LogOut },
+       { label: 'Cadastros', count: displayStats.total_cadastro, color: 'text-blue-500', bg: 'bg-blue-500/10', icon: PlusCircle },
+       { label: 'Edições', count: displayStats.total_edicao, color: 'text-orange-500', bg: 'bg-orange-500/10', icon: Edit },
+       { label: 'Cancelamentos', count: displayStats.total_cancelamento, color: 'text-red-500', bg: 'bg-red-500/10', icon: XCircle },
+       { label: 'Anulações', count: displayStats.total_anulacao, color: 'text-yellow-500', bg: 'bg-yellow-500/10', icon: RotateCcw },
+       { label: 'Logins', count: displayStats.total_login, color: 'text-green-500', bg: 'bg-green-500/10', icon: LogIn },
+       { label: 'Logoffs', count: displayStats.total_logoff, color: 'text-gray-400', bg: 'bg-gray-500/10', icon: LogOut },
     ];
 
     return (
@@ -435,37 +534,10 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
   if (displayReqs > 500000) { serverStatus = 'Moderado'; statusColor = 'text-yellow-400'; }
   if (displayReqs > 1000000) { serverStatus = 'Crítico'; statusColor = 'text-red-500'; }
 
-  // Formatação de Data no Header
-  const getDisplayDate = () => {
-      const d = new Date(selectedDate);
-      const userTimezoneOffset = d.getTimezoneOffset() * 60000;
-      const adjustedDate = new Date(d.getTime() + userTimezoneOffset);
+  // Deduplicação de Usuários para Exibição
+  const uniqueUsers = Array.isArray(stats?.usuarios_unicos) ? [...new Set(stats?.usuarios_unicos)] : [];
 
-      if (viewMode === 'day') {
-          return adjustedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      } else if (viewMode === 'month') {
-          return adjustedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
-      } else {
-          // Semana: Calcula Intervalo
-          const curr = new Date(selectedDate + 'T00:00:00Z');
-          const day = curr.getUTCDay();
-          const diff = curr.getUTCDate() - day + (day === 0 ? -6 : 1);
-          const monday = new Date(curr);
-          monday.setUTCDate(diff);
-          
-          const sunday = new Date(monday);
-          sunday.setUTCDate(monday.getUTCDate() + 6);
-
-          // Ajuste visual para fuso (apenas para display string)
-          const fmt = (dt: Date) => {
-              const localDt = new Date(dt.getTime() + dt.getTimezoneOffset() * 60000); 
-              return localDt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-          }
-          return `${fmt(monday)} A ${fmt(sunday)}`;
-      }
-  };
-
-  const displayDate = getDisplayDate();
+  const displayInfo = getDisplayRangeInfo();
 
   return (
     <>
@@ -530,8 +602,8 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
                             {viewMode === 'week' && <CalendarRange size={14} className="text-[#690c76]" />}
                             {viewMode === 'month' && <CalendarDays size={14} className="text-[#690c76]" />}
                             
-                            {displayDate}
-                            {isToday && viewMode === 'day' && <span className="bg-[#690c76] text-[9px] px-1.5 rounded text-white ml-1">HOJE</span>}
+                            {displayInfo.label}
+                            {displayInfo.suffix && <span className="bg-[#690c76] text-[9px] px-1.5 rounded text-white ml-1">{displayInfo.suffix}</span>}
                         </div>
                         <button onClick={() => navigateDate(1)} disabled={isToday && viewMode === 'day'} className={`p-2 rounded-md transition-colors ${isToday && viewMode === 'day' ? 'opacity-30 cursor-not-allowed' : 'hover:bg-[#333] text-gray-400 hover:text-white'}`}><ChevronRight size={18} /></button>
                     </div>
@@ -609,10 +681,10 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
                                     <h3 className="text-xs font-bold uppercase">Usuários Ativos</h3>
                                 </div>
                                 <div className="text-3xl font-mono font-bold text-white mb-4">
-                                    {Array.isArray(stats?.usuarios_unicos) ? stats?.usuarios_unicos.length : 0}
+                                    {uniqueUsers.length}
                                 </div>
                                 <div className="flex flex-wrap gap-1">
-                                    {Array.isArray(stats?.usuarios_unicos) && stats?.usuarios_unicos.map((u: string, i: number) => (
+                                    {uniqueUsers.map((u: string, i: number) => (
                                         <span key={i} className="text-[10px] bg-[#333] text-gray-300 px-2 py-1 rounded border border-[#444] truncate max-w-[80px]" title={u}>
                                             {u.split(' ')[0]}
                                         </span>
@@ -628,7 +700,11 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
                             <div className="md:col-span-2 bg-[#141414] border border-[#333] rounded-2xl overflow-hidden flex flex-col">
                                 <div className="p-4 border-b border-[#333] bg-[#1a1a1a] flex justify-between items-center">
                                     <h3 className="text-sm font-bold text-gray-200 flex items-center gap-2">
-                                        <List size={16} /> Detalhamento de Execuções {viewMode !== 'day' ? '(Consolidado)' : ''}
+                                        <List size={16} /> 
+                                        {viewMode === 'day' 
+                                            ? 'Detalhamento de Execuções' 
+                                            : `Detalhamento de Execuções (${displayInfo.label})`
+                                        }
                                     </h3>
                                 </div>
                                 {renderActionBreakdown()}

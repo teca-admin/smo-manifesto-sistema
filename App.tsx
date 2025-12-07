@@ -55,6 +55,12 @@ function App() {
       const now = new Date();
       const horaLocal = String(now.getHours()).padStart(2, '0');
       const timestampLocalISO = now.toISOString();
+      
+      // Calcula Data Local para Fuso Horário
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const dataLocal = `${year}-${month}-${day}`;
 
       try {
           await supabase
@@ -71,7 +77,8 @@ function App() {
               p_cancelamento: 0,
               p_anulacao: 0,
               p_login: action === 'login' ? 1 : 0,
-              p_logoff: action === 'logoff' ? 1 : 0
+              p_logoff: action === 'logoff' ? 1 : 0,
+              p_data_local: dataLocal // Adicionado suporte a Fuso
             });
       } catch (e) {
           console.error(`Falha ao registrar ${action}:`, e);
