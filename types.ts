@@ -14,6 +14,7 @@ export interface Manifesto {
   baseId?: string;
   carimboDataHR?: string; // Novo campo
   usuarioOperacao?: string; // Novo campo mapeado
+  usuarioAcao?: string; // Novo campo solicitado
   
   // Novos campos de Timeline mapeados de colunas específicas
   dataHoraIniciado?: string;
@@ -75,6 +76,7 @@ export interface SMO_Sistema_DB {
   Turno: string;
   "Carimbo_Data/HR"?: string; // Novo campo mapeado do banco
   "Usuario_Operação"?: string; // Novo campo mapeado do banco
+  Usuario_Action?: string; // Novo campo mapeado do banco
   
   // Colunas específicas de datas da Timeline
   Manifesto_Iniciado?: string;

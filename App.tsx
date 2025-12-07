@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
@@ -133,6 +134,7 @@ function App() {
     turno: item.Turno,
     carimboDataHR: item["Carimbo_Data/HR"],
     usuarioOperacao: item["Usuario_Operação"],
+    usuarioAcao: item.Usuario_Action, // Mapeamento novo
     dataHoraIniciado: item.Manifesto_Iniciado,
     dataHoraDisponivel: item.Manifesto_Disponivel,
     dataHoraConferencia: item["Manifesto_em_Conferência"],
@@ -288,6 +290,7 @@ function App() {
 
       const payload = {
           id: nextId,
+          ID_Manifesto: nextId, // Campo adicional solicitado explicitamente
           usuario: currentUser?.Usuario || "Sistema",
           cia: data.cia,
           dataHoraPuxado: formatForN8N(data.dataHoraPuxado),
