@@ -318,9 +318,9 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
               <span className="font-bold capitalize text-sm">
                 {months[viewDate.getMonth()]} de {viewDate.getFullYear()}
               </span>
-              <div className="flex gap-2">
-                <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-100 rounded text-gray-600"><ChevronLeft size={16} /></button>
-                <button onClick={() => changeMonth(1)} className="p-1 hover:bg-gray-100 rounded text-gray-600"><ChevronRight size={16} /></button>
+              <div className="flex gap-1">
+                <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><ChevronLeft size={18} /></button>
+                <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><ChevronRight size={18} /></button>
               </div>
             </div>
 
@@ -349,9 +349,19 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
               ))}
             </div>
 
-            <div className="flex justify-between mt-auto pt-3 border-t border-gray-200 shrink-0">
-              <button onClick={clearDate} className="text-[12px] text-gray-500 hover:text-gray-800">Limpar</button>
-              <button onClick={setToday} className="text-[12px] text-[#0d6efd] font-bold hover:text-[#3d8bfd]">Hoje</button>
+            <div className="flex gap-2 mt-auto pt-3 border-t border-gray-200 shrink-0">
+              <button 
+                onClick={clearDate} 
+                className="flex-1 bg-gray-100 text-gray-600 border border-gray-200 p-[8px] rounded-[8px] text-[12px] font-semibold hover:bg-gray-200 transition-all"
+              >
+                Limpar
+              </button>
+              <button 
+                onClick={setToday} 
+                className="flex-1 bg-[#0d6efd] text-white border border-[#0d6efd] p-[8px] rounded-[8px] text-[12px] font-bold hover:bg-[#0b5ed7] transition-all shadow-sm"
+              >
+                Hoje
+              </button>
             </div>
           </div>
 

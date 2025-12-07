@@ -233,7 +233,8 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ data, onClose }) => 
 
   return (
     <div className="fixed top-0 left-0 w-full h-full bg-black/85 z-[10000] flex items-center justify-center backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white p-[0] rounded-[20px] min-w-[500px] max-w-[600px] max-h-[90vh] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-slideInUp border-2 border-[#690c76] flex flex-col">
+      {/* Modal Container: Increased Width for Horizontal Layout */}
+      <div className="bg-white p-[0] rounded-[20px] min-w-[800px] max-w-[900px] w-[95%] max-h-[90vh] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-slideInUp border-2 border-[#690c76] flex flex-col">
         
         {/* Header */}
         <div className="p-[25px] text-center border-b border-[#eee]">
@@ -253,65 +254,73 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ data, onClose }) => 
                  <span className="bg-[#690c76] text-white p-[4px_10px] rounded-[6px] text-[12px] font-bold tracking-wide">{data.id}</span>
               </div>
 
-              {/* Informações Básicas */}
-              <div className="mb-[25px]">
-                 <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider">Informações Básicas</h5>
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#666] text-[13px]">Usuário Sistema:</span>
-                    <span className="text-[#333] text-[13px] font-bold">{data.usuario}</span>
-                 </div>
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#666] text-[13px]">Usuário Operação:</span>
-                    <span className="text-[#333] text-[13px] font-bold">{data.usuarioOperacao || "Não informado"}</span>
-                 </div>
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#666] text-[13px]">CIA:</span>
-                    <span className="text-[#333] text-[13px] font-bold">{data.cia}</span>
-                 </div>
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#666] text-[13px]">Turno:</span>
-                    <span className="text-[#333] text-[13px] font-bold">{data.turno}</span>
-                 </div>
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#666] text-[13px]">Status Atual:</span>
-                    <span className={`p-[2px_8px] rounded-[6px] text-white text-[12px] font-bold shadow-sm uppercase tracking-wide ${getStatusClass(data.status)}`}>
-                        {data.status}
-                    </span>
-                 </div>
-              </div>
+              {/* Grid Layout for horizontal distribution */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                {/* Left Column: Basic Info & Cargas */}
+                <div className="flex flex-col gap-6">
+                  {/* Informações Básicas */}
+                  <div>
+                     <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider border-b border-[#690c76]/20 pb-2">Informações Básicas</h5>
+                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                        <span className="text-[#666] text-[13px]">Usuário Sistema:</span>
+                        <span className="text-[#333] text-[13px] font-bold">{data.usuario}</span>
+                     </div>
+                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                        <span className="text-[#666] text-[13px]">Usuário Operação:</span>
+                        <span className="text-[#333] text-[13px] font-bold">{data.usuarioOperacao || "Não informado"}</span>
+                     </div>
+                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                        <span className="text-[#666] text-[13px]">CIA:</span>
+                        <span className="text-[#333] text-[13px] font-bold">{data.cia}</span>
+                     </div>
+                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                        <span className="text-[#666] text-[13px]">Turno:</span>
+                        <span className="text-[#333] text-[13px] font-bold">{data.turno}</span>
+                     </div>
+                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                        <span className="text-[#666] text-[13px]">Status Atual:</span>
+                        <span className={`p-[2px_8px] rounded-[6px] text-white text-[12px] font-bold shadow-sm uppercase tracking-wide ${getStatusClass(data.status)}`}>
+                            {data.status}
+                        </span>
+                     </div>
+                  </div>
 
-              {/* Cargas */}
-              <div className="mb-[25px]">
-                 <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider">Cargas</h5>
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#666] text-[13px]">Cargas (IN/H):</span>
-                    <span className="text-[#333] text-[13px] font-bold">{data.cargasINH}</span>
-                 </div>
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#666] text-[13px]">Cargas (IZ):</span>
-                    <span className="text-[#333] text-[13px] font-bold">{data.cargasIZ}</span>
-                 </div>
-              </div>
+                  {/* Cargas */}
+                  <div>
+                     <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider border-b border-[#690c76]/20 pb-2">Cargas</h5>
+                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                        <span className="text-[#666] text-[13px]">Cargas (IN/H):</span>
+                        <span className="text-[#333] text-[13px] font-bold">{data.cargasINH}</span>
+                     </div>
+                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                        <span className="text-[#666] text-[13px]">Cargas (IZ):</span>
+                        <span className="text-[#333] text-[13px] font-bold">{data.cargasIZ}</span>
+                     </div>
+                  </div>
+                </div>
 
-              {/* Timeline */}
-              <div>
-                 <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider">Timeline</h5>
-                 
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#555] text-[13px] font-medium">Manifesto Puxado:</span>
-                    <span className="text-[#333] text-[13px] font-bold">{formatDate(data.dataHoraPuxado)}</span>
-                 </div>
-                 <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                    <span className="text-[#555] text-[13px] font-medium">Manifesto Recebido:</span>
-                    <span className="text-[#333] text-[13px] font-bold">{formatDate(data.dataHoraRecebido)}</span>
-                 </div>
-                 
-                 {/* Exibição direta das colunas do banco, independente do status atual */}
-                 {renderSimpleRow("Manifesto Iniciado", data.dataHoraIniciado)}
-                 {renderSimpleRow("Manifesto Disponível", data.dataHoraDisponivel)}
-                 {renderSimpleRow("Manifesto em Conferência", data.dataHoraConferencia)}
-                 {renderSimpleRow("Manifesto Pendente", data.dataHoraPendente)}
-                 {renderSimpleRow("Manifesto Completo", data.dataHoraCompleto)}
+                {/* Right Column: Timeline */}
+                <div>
+                   <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider border-b border-[#690c76]/20 pb-2">Timeline</h5>
+                   
+                   <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                      <span className="text-[#555] text-[13px] font-medium">Manifesto Puxado:</span>
+                      <span className="text-[#333] text-[13px] font-bold">{formatDate(data.dataHoraPuxado)}</span>
+                   </div>
+                   <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+                      <span className="text-[#555] text-[13px] font-medium">Manifesto Recebido:</span>
+                      <span className="text-[#333] text-[13px] font-bold">{formatDate(data.dataHoraRecebido)}</span>
+                   </div>
+                   
+                   {/* Exibição direta das colunas do banco, independente do status atual */}
+                   {renderSimpleRow("Manifesto Iniciado", data.dataHoraIniciado)}
+                   {renderSimpleRow("Manifesto Disponível", data.dataHoraDisponivel)}
+                   {renderSimpleRow("Manifesto em Conferência", data.dataHoraConferencia)}
+                   {renderSimpleRow("Manifesto Pendente", data.dataHoraPendente)}
+                   {renderSimpleRow("Manifesto Completo", data.dataHoraCompleto)}
+                </div>
+
               </div>
            </div>
 
