@@ -65,8 +65,21 @@ interface ExtendedPerformanceLog extends PerformanceLogDB {
 
 export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifestos, isLoggedIn, currentUser }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  
+  // Helper to get local date string YYYY-MM-DD
+  const getLocalDateStr = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalDateStr());
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day'); 
+  
+  // Define isToday early for use in render
+  const isToday = selectedDate === getLocalDateStr();
   
   // --- STATES DE DADOS ---
   const [stats, setStats] = useState<ExtendedPerformanceLog | null>(null);
@@ -200,7 +213,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
             bufferActions.current.cancelamento += actionsToSend.cancelamento;
             bufferActions.current.anulacao += actionsToSend.anulacao;
          } else {
-            if (isOpen && selectedDate === new Date().toISOString().split('T')[0] && viewMode === 'day') {
+            if (isOpen && selectedDate === getLocalDateStr() && viewMode === 'day') {
                 fetchStats(selectedDate, 'day');
             }
          }
@@ -500,6 +513,15 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
       total_logoff: d.total_logoff || 0
     };
 
+    // FIX: Include local buffer if viewing 'day' and today
+    // This makes the UI responsive to user actions immediately
+    if (viewMode === 'day' && isToday) {
+        displayStats.total_cadastro += bufferActions.current.cadastro;
+        displayStats.total_edicao += bufferActions.current.edicao;
+        displayStats.total_cancelamento += bufferActions.current.cancelamento;
+        displayStats.total_anulacao += bufferActions.current.anulacao;
+    }
+
     const actions = [
        { label: 'Cadastros', count: displayStats.total_cadastro, color: 'text-blue-500', bg: 'bg-blue-500/10', icon: PlusCircle },
        { label: 'Edições', count: displayStats.total_edicao, color: 'text-orange-500', bg: 'bg-orange-500/10', icon: Edit },
@@ -525,7 +547,8 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
   if (!hasAccess) return null;
 
   // Calculos Visuais
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  // isToday is already defined at top of component
+
   const displayReqs = (stats?.total_requisicoes || 0) + (isToday && viewMode === 'day' ? requestCountSession : 0);
   
   // Status do Servidor
