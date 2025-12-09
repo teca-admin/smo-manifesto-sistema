@@ -168,14 +168,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     const closeMenu = () => setMenuOpenId(null);
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeMenu();
+      }
+    };
+
     window.addEventListener('click', closeMenu);
     window.addEventListener('scroll', closeMenu, true); 
     window.addEventListener('resize', closeMenu);
+    window.addEventListener('keydown', handleKeyDown);
     
     return () => {
       window.removeEventListener('click', closeMenu);
       window.removeEventListener('scroll', closeMenu, true);
       window.removeEventListener('resize', closeMenu);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
@@ -335,7 +344,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
          >
             <button onClick={() => handleMenuAction(() => openHistory(menuOpenId))} className="block w-full px-[16px] py-[10px] text-left text-[13px] text-[#007bff] font-medium hover:bg-[#690c76]/10 hover:text-[#690c76] border-b border-[#f0f0f0] transition-colors">📋 Histórico do Manifesto</button>
             
-            <button disabled className="block w-full px-[16px] py-[10px] text-left text-[13px] text-gray-400 font-medium border-b border-[#f0f0f0] cursor-not-allowed">✅ Marcar como Entregue</button>
+            {(() => {
+              const currentM = manifestos.find(m => m.id === menuOpenId);
+              const canEntregar = currentM && currentM.status === 'Manifesto Completo';
+              
+              return (
+                <button 
+                  disabled={!canEntregar} 
+                  onClick={() => canEntregar && handleMenuAction(() => onAction('entregar', menuOpenId))} 
+                  className={`block w-full px-[16px] py-[10px] text-left text-[13px] font-medium border-b border-[#f0f0f0] transition-colors ${
+                     canEntregar 
+                       ? 'text-[#137333] hover:bg-[#137333]/10 hover:text-[#0f5b28] cursor-pointer' 
+                       : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  ✅ Entregar Manifesto
+                </button>
+              );
+            })()}
             
             {(() => {
               const currentM = manifestos.find(m => m.id === menuOpenId);
@@ -358,7 +384,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
               );
             })()}
             
-            <button onClick={() => handleMenuAction(() => openEdit(menuOpenId))} className="block w-full px-[16px] py-[10px] text-left text-[13px] text-[#db091b] font-medium hover:bg-[#db091b]/10 hover:text-[#b30715] border-b border-[#f0f0f0] transition-colors">✏️ Editar Manifesto</button>
+            {(() => {
+              const currentM = manifestos.find(m => m.id === menuOpenId);
+              // Somente permite editar se o status for 'Manifesto Recebido' ou 'Manifesto Iniciado'
+              const canEdit = currentM && ['Manifesto Recebido', 'Manifesto Iniciado'].includes(currentM.status);
+              
+              return (
+                <button 
+                  disabled={!canEdit}
+                  onClick={() => canEdit && handleMenuAction(() => openEdit(menuOpenId))} 
+                  className={`block w-full px-[16px] py-[10px] text-left text-[13px] font-medium border-b border-[#f0f0f0] transition-colors ${
+                    canEdit 
+                      ? 'text-[#db091b] hover:bg-[#db091b]/10 hover:text-[#b30715] cursor-pointer' 
+                      : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  ✏️ Editar Manifesto
+                </button>
+              );
+            })()}
+
             <button onClick={() => handleMenuAction(() => onAction('cancelar', menuOpenId))} className="block w-full px-[16px] py-[10px] text-left text-[13px] text-[#dc3545] font-medium hover:bg-[#dc3545]/10 hover:text-[#a02834] transition-colors">❌ Cancelar Manifesto</button>
          </div>,
          document.body

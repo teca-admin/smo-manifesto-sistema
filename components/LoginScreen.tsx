@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { User as UserIcon, Lock, AlertCircle, Info } from 'lucide-react';
 import { User } from '../types';
@@ -60,14 +59,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
       });
 
       if (!response.ok) {
-        throw new Error(`Erro de conexão com n8n: ${response.status}`);
+        throw new Error(`Erro de conexão com o sistema: ${response.status}`);
       }
 
       const responseText = await response.text();
       
       if (!responseText) {
          console.error("Recebido 200 OK mas sem corpo de resposta.");
-         throw new Error("Erro de Fluxo: O n8n encontrou o usuário mas não retornou resposta.");
+         throw new Error("Erro de Fluxo: O sistema encontrou o usuário mas não retornou resposta.");
       }
 
       let data;
@@ -98,7 +97,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
       const userFound = data.user || (data.id ? data : null) || (Array.isArray(data) ? data[0] : null) || {}; 
       
       if (!userFound.id && !userFound.Usuario) {
-         throw new Error("Credenciais inválidas ou erro na estrutura de retorno do n8n.");
+         throw new Error("Credenciais inválidas ou erro na estrutura de retorno.");
       }
       
       const authenticatedUser: User = {
@@ -175,7 +174,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
                 className="w-full p-[14px] bg-gradient-to-br from-[#690c76] to-[#4d0557] text-white border-none rounded-[12px] text-[16px] font-semibold cursor-pointer shadow-[0_4px_15px_rgba(105,12,118,0.3)] hover:-translate-y-[1px] disabled:opacity-60 transition-all"
                 disabled={loading}
               >
-                {loading ? 'Validando no n8n...' : 'Entrar'}
+                {loading ? 'Validando...' : 'Entrar'}
               </button>
             </form>
             

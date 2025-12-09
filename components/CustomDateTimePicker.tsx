@@ -229,7 +229,9 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
     updateParent(newDate);
   };
 
-  const setToday = () => {
+  const setToday = (e?: React.MouseEvent) => {
+    // Stop propagation to be safe, though container handler covers it
+    e?.stopPropagation(); 
     const now = new Date();
     setSelectedDate(now);
     setViewDate(now);
@@ -268,13 +270,12 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
       <div 
         className={`
           flex items-center justify-between w-full p-[8px_12px] border-2 rounded-[8px] text-[13px] bg-white transition-all
-          ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-100' : 'hover:border-[#690c76]'}
+          ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-100' : 'hover:border-[#690c76] cursor-text'}
           ${isOpen ? 'border-[#690c76] shadow-[0_0_0_3px_rgba(105,12,118,0.1)]' : 'border-[#e0e0e0]'}
         `}
         onClick={() => {
-           if (!disabled && !isOpen) {
-             setIsOpen(true);
-             setTimeout(() => inputRef.current?.focus(), 50);
+           if (!disabled) {
+             inputRef.current?.focus();
            }
         }}
       >
@@ -284,6 +285,9 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
           value={inputValue}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
+          onFocus={() => {
+            if (!disabled && !isOpen) setIsOpen(true);
+          }}
           placeholder={placeholder}
           disabled={disabled}
           className="flex-1 w-full bg-transparent border-none outline-none text-gray-900 font-medium placeholder-gray-400 text-[13px]"
@@ -300,7 +304,10 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
            )}
            <CalendarIcon size={14} className="text-[#690c76] cursor-pointer" onClick={(e) => {
              e.stopPropagation();
-             if(!disabled) setIsOpen(!isOpen);
+             if(!disabled) {
+               setIsOpen(!isOpen);
+               if (!isOpen) setTimeout(() => inputRef.current?.focus(), 50);
+             }
            }} />
         </div>
       </div>
@@ -309,6 +316,13 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
       {isOpen && createPortal(
         <div 
           ref={popoverRef}
+          // IMPORTANT: Prevent clicks inside the calendar from bubbling to document listener
+          // This ensures clicking gaps/padding/borders doesn't trigger "click outside" and closes the modal
+          // We use preventDefault to prevent the input from losing focus (blur), which would trigger validation/closing
+          onMouseDown={(e) => {
+             e.preventDefault(); 
+             e.nativeEvent.stopImmediatePropagation();
+          }}
           className="absolute z-[10050] bg-white border border-gray-200 rounded-[12px] shadow-[0_10px_40px_rgba(0,0,0,0.15)] p-0 w-[320px] flex overflow-hidden animate-slideIn-novo"
           style={{ top: coords.top, left: coords.left, height: '320px' }} 
         >

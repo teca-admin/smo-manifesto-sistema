@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
-import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal } from './components/Modals';
+import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal, DeliveryModal } from './components/Modals';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
-import { Manifesto, User, SMO_Sistema_DB } from './types';
+import { Manifesto, User, SMO_Sistema_DB, ManifestoEvent } from './types';
 import { supabase, DB_SCHEMA, PERFORMANCE_SCHEMA } from './supabaseClient';
 
 // ------------------------------------------------------------------
@@ -22,6 +22,7 @@ function App() {
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [manifestos, setManifestos] = useState<Manifesto[]>([]);
+  const [nextId, setNextId] = useState<string>('Automático'); // Estado para o próximo ID
   
   // Ref para guardar o usuário atual sem causar re-renders no listener de eventos
   const currentUserRef = useRef<User | null>(null);
@@ -34,8 +35,10 @@ function App() {
   // Modal States
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
+  const [historyEvents, setHistoryEvents] = useState<ManifestoEvent[]>([]); // Estado para eventos do histórico
   const [cancellationId, setCancellationId] = useState<string | null>(null);
   const [anularId, setAnularId] = useState<string | null>(null);
+  const [deliveryId, setDeliveryId] = useState<string | null>(null);
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
   
@@ -100,27 +103,67 @@ function App() {
     return dateStr.replace('T', ' ');
   };
 
-  const generateNextId = (currentList: Manifesto[]) => {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2); 
-    const prefix = `MAO - ${year}`; 
-    
+  // Lógica local de fallback (caso o banco falhe)
+  const generateNextIdLocal = (currentList: Manifesto[], prefix: string) => {
     let maxSeq = 0;
-
     currentList.forEach(m => {
       if (m.id && m.id.startsWith(prefix)) {
-        const seqString = m.id.substring(8); 
-        const seq = parseInt(seqString, 10);
-        
-        if (!isNaN(seq) && seq > maxSeq) {
-          maxSeq = seq;
+        // Regex robusto para pegar números do final da string
+        const match = m.id.match(/(\d+)$/);
+        if (match) {
+           const seq = parseInt(match[1], 10);
+           if (!isNaN(seq) && seq > maxSeq) {
+              maxSeq = seq;
+           }
         }
       }
     });
-
     const nextSeq = maxSeq + 1;
     return `${prefix}${nextSeq.toString().padStart(7, '0')}`;
   };
+
+  // NOVA LÓGICA: Busca o maior ID diretamente do banco para garantir precisão
+  // independente da lista de 100 itens carregada na tela.
+  const fetchNextId = useCallback(async () => {
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2); 
+      const prefix = `MAO - ${year}`;
+
+      try {
+        // Busca o ÚLTIMO ID criado na tabela de EVENTOS (Histórico completo)
+        const { data, error } = await supabase
+          .from('SMO_Sistema_Eventos') // <--- CORRIGIDO: Consulta a tabela de Eventos
+          .select('ID_Manifesto')
+          .ilike('ID_Manifesto', `${prefix}%`) // Case insensitive like "MAO - 25%"
+          .order('ID_Manifesto', { ascending: false }) // Pega o maior
+          .limit(1);
+        
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            const lastId = data[0].ID_Manifesto;
+            const match = lastId.match(/(\d+)$/);
+            if (match) {
+                const seq = parseInt(match[1], 10);
+                const newId = `${prefix}${(seq + 1).toString().padStart(7, '0')}`;
+                setNextId(newId);
+                return newId;
+            }
+        }
+        
+        // Se não houver nenhum registro, começa do 1
+        const initialId = `${prefix}0000001`;
+        setNextId(initialId);
+        return initialId;
+
+      } catch (err) {
+        console.error("Erro ao calcular próximo ID via banco, usando fallback local:", err);
+        // Fallback para a lista local em caso de erro de rede
+        const localId = generateNextIdLocal(manifestos, prefix);
+        setNextId(localId);
+        return localId;
+      }
+  }, [manifestos]);
 
   const showAlert = (type: 'success' | 'error', msg: string) => {
      setAlert({ type, msg });
@@ -177,7 +220,7 @@ function App() {
   const fetchManifestos = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('SMO_Sistema')
+        .from('SMO_Sistema') // <--- CORRIGIDO: Consulta a tabela principal do Frontend
         .select('*')
         .order('id', { ascending: false })
         .limit(100); // 🚨 LIMITANDO A 100 REGISTROS PARA OTIMIZAÇÃO
@@ -205,10 +248,12 @@ function App() {
 
     // 1. Carga Inicial
     fetchManifestos();
+    fetchNextId(); // Calcula ID inicial
 
     // 2. Configura o intervalo de 1 segundo (1000ms)
     const intervalId = setInterval(() => {
       fetchManifestos();
+      fetchNextId(); // Atualiza ID periodicamente também
     }, 1000);
 
     // 3. Listeners Locais de Segurança (Verifica sessão ao interagir)
@@ -223,7 +268,7 @@ function App() {
       window.removeEventListener('click', handleInteraction);
       document.removeEventListener('visibilitychange', handleInteraction);
     };
-  }, [isLoggedIn, fetchManifestos, verifySessionIntegrity]);
+  }, [isLoggedIn, fetchManifestos, fetchNextId, verifySessionIntegrity]);
 
 
   const handleLoginSuccess = async (user: User) => {
@@ -281,9 +326,10 @@ function App() {
     await verifySessionIntegrity();
     if (!currentUserRef.current) return;
 
-    setLoadingMsg("Enviando para o n8n...");
+    setLoadingMsg("Enviando...");
     try {
-      const nextId = generateNextId(manifestos);
+      // Garante que temos o ID mais atualizado possível antes de salvar
+      const calculatedId = await fetchNextId();
       const currentTimestamp = getCurrentTimestampSQL();
       
       let turno = "3 Turno";
@@ -295,8 +341,8 @@ function App() {
       }
 
       const payload = {
-          id: nextId,
-          ID_Manifesto: nextId, // Campo adicional solicitado explicitamente
+          id: calculatedId,
+          ID_Manifesto: calculatedId, // Campo adicional solicitado explicitamente
           usuario: currentUser?.Usuario || "Sistema",
           cia: data.cia,
           dataHoraPuxado: formatForN8N(data.dataHoraPuxado),
@@ -318,17 +364,18 @@ function App() {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error("Erro na comunicação com n8n");
+      if (!response.ok) throw new Error("Erro na comunicação com servidor");
 
       showAlert('success', "Manifesto enviado para processamento!");
       trackPerformanceAction('cadastro');
       
-      // Fetch imediato para feedback rápido
+      // Fetch imediato para feedback rápido e atualizar ID
       await fetchManifestos();
+      await fetchNextId();
 
     } catch (err: any) {
       console.error(err);
-      showAlert('error', "Erro ao salvar via n8n: " + err.message);
+      showAlert('error', "Erro ao salvar: " + err.message);
     } finally {
       setLoadingMsg(null);
     }
@@ -338,7 +385,7 @@ function App() {
     await verifySessionIntegrity();
     if (!currentUserRef.current) return;
 
-    setLoadingMsg("Enviando edição ao n8n...");
+    setLoadingMsg("Processando edição...");
     try {
       const payload = {
          id: partialData.id,
@@ -362,7 +409,7 @@ function App() {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error("Erro na comunicação com n8n");
+      if (!response.ok) throw new Error("Erro na comunicação com servidor");
 
       showAlert('success', "Edição enviada com sucesso!");
       trackPerformanceAction('edicao');
@@ -371,7 +418,7 @@ function App() {
 
     } catch (err: any) {
       console.error(err);
-      showAlert('error', "Erro ao editar via n8n: " + err.message);
+      showAlert('error', "Erro ao editar: " + err.message);
     } finally {
       setLoadingMsg(null);
     }
@@ -384,6 +431,10 @@ function App() {
      }
      if (action === 'anular') {
          setAnularId(id);
+         return;
+     }
+     if (action === 'entregar') {
+         setDeliveryId(id);
          return;
      }
   };
@@ -413,7 +464,7 @@ function App() {
             body: JSON.stringify(payload)
           });
 
-          if (!response.ok) throw new Error("Erro na comunicação com n8n");
+          if (!response.ok) throw new Error("Erro na comunicação com servidor");
 
           showAlert('success', "Solicitação de cancelamento enviada!");
           trackPerformanceAction('cancelamento');
@@ -452,7 +503,7 @@ function App() {
             body: JSON.stringify(payload)
           });
 
-          if (!response.ok) throw new Error("Erro na comunicação com n8n");
+          if (!response.ok) throw new Error("Erro na comunicação com servidor");
 
           showAlert('success', "Solicitação de anulação enviada!");
           trackPerformanceAction('anulacao');
@@ -466,14 +517,57 @@ function App() {
       }
   };
 
+  const handleConfirmDelivery = async (type: 'Parcial' | 'Completa', quantities?: { inh: number, iz: number }) => {
+      await verifySessionIntegrity();
+      if (!currentUserRef.current) return;
+
+      if (!deliveryId) return;
+      
+      const currentManifesto = manifestos.find(m => m.id === deliveryId);
+      const id = deliveryId;
+      setDeliveryId(null);
+
+      setLoadingMsg(`Registrando Entrega ${type}...`);
+      try {
+          const payload = {
+             Action: type === 'Completa' ? "Entrega Completa" : "Entrega Parcial",
+             id: id,
+             usuario: currentUser?.Usuario,
+             Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
+             'Carimbo_Data/HR': getCurrentTimestampSQL(),
+             // Adiciona quantidades entregues se fornecidas (Parcial), ou usa o total (Completa)
+             Entregue_INH: quantities ? quantities.inh : (currentManifesto?.cargasINH || 0),
+             Entregue_IZ: quantities ? quantities.iz : (currentManifesto?.cargasIZ || 0)
+          };
+
+          const response = await fetch(N8N_WEBHOOK_CANCEL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) throw new Error("Erro na comunicação com servidor");
+
+          showAlert('success', `Manifesto marcado como Entregue (${type})!`);
+          trackPerformanceAction('edicao'); 
+          await fetchManifestos();
+
+      } catch (err: any) {
+           console.error(err);
+           showAlert('error', "Erro ao registrar entrega: " + err.message);
+      } finally {
+           setLoadingMsg(null);
+      }
+  };
+
   const handleOpenHistory = async (id: string) => {
     setViewingHistoryId(id);
-    
-    // Mantemos essa requisição única para garantir que temos os dados mais frescos 
-    // possíveis ao abrir o detalhe, independente do polling da lista principal.
+    setHistoryEvents([]); // Limpa eventos anteriores
+
+    // 1. Atualiza dados do manifesto principal (Snapshot Atual)
     try {
       const { data, error } = await supabase
-        .from('SMO_Sistema')
+        .from('SMO_Sistema') // <--- CORRIGIDO: Consulta a tabela principal
         .select('*')
         .eq('ID_Manifesto', id)
         .single();
@@ -483,7 +577,24 @@ function App() {
         setManifestos(prev => prev.map(m => m.id === id ? freshManifesto : m));
       }
     } catch (error) {
-       console.error("Erro ao atualizar histórico individual:", error);
+       console.error("Erro ao atualizar manifesto individual:", error);
+    }
+
+    // 2. Busca histórico de eventos (Tabela SMO_Sistema_Eventos)
+    try {
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('SMO_Sistema_Eventos')
+        .select('*')
+        .eq('ID_Manifesto', id)
+        .order('id', { ascending: true }); // Ordem cronológica para montar a timeline
+
+      if (!eventsError && eventsData) {
+        setHistoryEvents(eventsData as ManifestoEvent[]);
+      } else if (eventsError) {
+        console.error("Erro ao buscar histórico de eventos:", eventsError);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar eventos:", error);
     }
   };
 
@@ -503,7 +614,7 @@ function App() {
         openHistory={handleOpenHistory}
         openEdit={setEditingId}
         onShowAlert={showAlert}
-        nextId={generateNextId(manifestos)}
+        nextId={nextId} // Passa o ID calculado via banco
       />
 
       <PerformanceMonitor 
@@ -523,6 +634,7 @@ function App() {
       {viewingHistoryId && (
         <HistoryModal 
           data={manifestos.find(m => m.id === viewingHistoryId)!} 
+          events={historyEvents} // Passa os eventos carregados
           onClose={() => setViewingHistoryId(null)}
         />
       )}
@@ -538,6 +650,14 @@ function App() {
         <AnularModal
           onConfirm={handleConfirmAnular}
           onClose={() => setAnularId(null)}
+        />
+      )}
+      
+      {deliveryId && (
+        <DeliveryModal
+          data={manifestos.find(m => m.id === deliveryId)!}
+          onConfirm={handleConfirmDelivery}
+          onClose={() => setDeliveryId(null)}
         />
       )}
 

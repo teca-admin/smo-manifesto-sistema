@@ -1,8 +1,8 @@
-import React from 'react';
-import { Manifesto } from '../types';
+import React, { useEffect, useState } from 'react';
+import { Manifesto, ManifestoEvent } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ArrowRight, History, ArrowLeft } from 'lucide-react';
 
 interface EditModalProps {
   data: Manifesto;
@@ -35,6 +35,14 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
   });
   const [justificativa, setJustificativa] = React.useState('');
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handleSave = () => {
     setErrorMsg(null);
@@ -197,11 +205,20 @@ export const LoadingOverlay: React.FC<{ msg: string }> = ({ msg }) => (
 // Interface atualizada para receber o Manifesto completo
 interface HistoryModalProps {
   data: Manifesto;
+  events?: ManifestoEvent[];
   onClose: () => void;
 }
 
-export const HistoryModal: React.FC<HistoryModalProps> = ({ data, onClose }) => {
+export const HistoryModal: React.FC<HistoryModalProps> = ({ data, events = [], onClose }) => {
   
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   // Função auxiliar para formatar datas no padrão BR
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "Não registrado";
@@ -215,122 +232,214 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ data, onClose }) => 
     });
   };
 
-  const renderSimpleRow = (label: string, value: string | undefined) => {
-    const hasValue = !!value;
+  const renderRow = (label: string, value: string | undefined, isStatus: boolean = false) => {
+    const hasValue = !!value && value !== "Não registrado";
     return (
-       <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
+       <div className="flex justify-between items-center py-[8px] border-b border-[#f0f0f0] last:border-0 hover:bg-gray-50 px-2 -mx-2 rounded transition-colors">
           <span className="text-[#555] text-[13px] font-medium">{label}:</span>
-          {hasValue ? (
-             <span className="text-[#333] text-[13px] font-bold">{formatDate(value)}</span>
+          {isStatus ? (
+             <span className={`p-[2px_8px] rounded-[6px] text-white text-[11px] font-bold shadow-sm uppercase tracking-wide ${getStatusClass(value || '')}`}>
+                {value}
+             </span>
           ) : (
-             <span className="text-[#db091b] text-[13px] font-medium italic opacity-70">Não registrado</span>
+             <span className={`text-[13px] font-bold text-right ${hasValue ? 'text-[#333]' : 'text-[#db091b] opacity-70 italic'}`}>
+                {hasValue ? value : "Não registrado"}
+             </span>
           )}
        </div>
     );
   };
+  
+  const renderTimelineRow = (label: string, value: string | undefined) => {
+     return renderRow(label, value ? formatDate(value) : undefined);
+  };
+
+  // Helper para comparar eventos e gerar diffs
+  const getEventDiff = (currentEvent: ManifestoEvent, index: number) => {
+    if (index === 0) return null; // Primeiro evento não tem anterior para comparar
+    
+    const prevEvent = events[index - 1];
+    const diffs: { field: string, old: string | number, new: string | number }[] = [];
+    
+    // Lista de campos que queremos monitorar mudanças
+    const monitoredFields: (keyof ManifestoEvent)[] = ['CIA', 'Cargas_(IN/H)', 'Cargas_(IZ)', 'Manifesto_Puxado', 'Manifesto_Recebido'];
+    
+    const fieldLabels: Record<string, string> = {
+        'CIA': 'CIA',
+        'Cargas_(IN/H)': 'Cargas IN/H',
+        'Cargas_(IZ)': 'Cargas IZ',
+        'Manifesto_Puxado': 'Data Puxado',
+        'Manifesto_Recebido': 'Data Recebido'
+    };
+
+    monitoredFields.forEach(key => {
+        const val1 = prevEvent[key];
+        const val2 = currentEvent[key];
+        
+        // Compara valores (convertendo para string para facilitar)
+        if (String(val1) !== String(val2)) {
+            // Se for data, formata
+            let oldVal = val1;
+            let newVal = val2;
+            
+            if (key.includes('Manifesto_')) {
+               oldVal = formatDate(String(val1));
+               newVal = formatDate(String(val2));
+            }
+
+            diffs.push({
+                field: fieldLabels[key] || key,
+                old: oldVal as string | number,
+                new: newVal as string | number
+            });
+        }
+    });
+
+    return diffs.length > 0 ? diffs : null;
+  };
 
   return (
-    <div className="fixed top-0 left-0 w-full h-full bg-black/85 z-[10000] flex items-center justify-center backdrop-blur-sm animate-fadeIn">
-      {/* Modal Container: Increased Width for Horizontal Layout */}
-      <div className="bg-white p-[0] rounded-[20px] min-w-[800px] max-w-[900px] w-[95%] max-h-[90vh] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-slideInUp border-2 border-[#690c76] flex flex-col">
+    <div className="fixed top-0 left-0 w-full h-full bg-black/85 z-[10000] flex items-center justify-center backdrop-blur-sm animate-fadeIn p-4 overflow-y-auto">
+      {/* Modal Container: 
+          - Removemos min-w-[800px] fixo para usar max-w-[1000px] responsivo
+          - Removemos overflow e scrollbars desnecessários
+      */}
+      <div className="bg-white rounded-[20px] w-full max-w-[1000px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-slideInUp border-2 border-[#007bff] flex flex-col relative my-8">
         
         {/* Header */}
-        <div className="p-[25px] text-center border-b border-[#eee]">
-          <h3 className="text-[#690c76] text-[22px] font-bold m-0">Histórico Completo do Manifesto</h3>
+        <div className="p-[20px] text-center border-b border-[#eee]">
+          <div className="flex justify-center items-center gap-3">
+             <span className="text-[20px]">📋</span>
+             <div className="flex items-center gap-2">
+                <span className={`p-[4px_10px] rounded-[6px] text-white text-[12px] font-bold shadow-sm uppercase tracking-wide ${getStatusClass(data.status || '')}`}>
+                    {data.status}
+                </span>
+                <span className="bg-[#007bff] text-white p-[5px_12px] rounded-[8px] text-[13px] font-bold tracking-wide">{data.id}</span>
+             </div>
+          </div>
+          <h3 className="text-[#007bff] text-[18px] font-bold mt-2">Histórico Completo</h3>
         </div>
         
         {/* Content Scrollable */}
-        <div className="p-[25px] overflow-y-auto custom-scrollbar">
+        <div className="p-[30px] overflow-y-auto max-h-[70vh] custom-scrollbar">
            
-           {/* Card Principal */}
-           <div className="bg-white border-2 border-[#690c76] rounded-[12px] p-[20px] shadow-[0_4px_15px_rgba(0,0,0,0.05)]">
-              <div className="flex justify-between items-center mb-[20px] pb-[10px] border-b-2 border-[#690c76]">
-                 <div className="flex items-center gap-2">
-                    <span className="text-[18px]">📋</span>
-                    <h4 className="text-[#690c76] text-[15px] font-bold m-0">Manifesto Original</h4>
-                 </div>
-                 <span className="bg-[#690c76] text-white p-[4px_10px] rounded-[6px] text-[12px] font-bold tracking-wide">{data.id}</span>
-              </div>
+           {/* Card Principal - Snapshot Atual */}
+           <div className="bg-white border-2 border-[#007bff] rounded-[12px] p-[25px] shadow-sm mb-6">
+              <h4 className="text-[#007bff] text-[15px] font-bold mb-4 flex items-center gap-2">
+                 <History size={18} /> Estado Atual do Manifesto
+              </h4>
 
-              {/* Grid Layout for horizontal distribution */}
+              {/* Grid Layout - 2 Colunas */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 
-                {/* Left Column: Basic Info & Cargas */}
-                <div className="flex flex-col gap-6">
-                  {/* Informações Básicas */}
-                  <div>
-                     <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider border-b border-[#690c76]/20 pb-2">Informações Básicas</h5>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">Usuário Sistema:</span>
-                        <span className="text-[#333] text-[13px] font-bold">{data.usuario}</span>
-                     </div>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">Usuário Operação:</span>
-                        <span className="text-[#333] text-[13px] font-bold">{data.usuarioOperacao || "Não registrado"}</span>
-                     </div>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">CIA:</span>
-                        <span className="text-[#333] text-[13px] font-bold">{data.cia}</span>
-                     </div>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">Turno:</span>
-                        <span className="text-[#333] text-[13px] font-bold">{data.turno}</span>
-                     </div>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">Status Atual:</span>
-                        <span className={`p-[2px_8px] rounded-[6px] text-white text-[12px] font-bold shadow-sm uppercase tracking-wide ${getStatusClass(data.status)}`}>
-                            {data.status}
-                        </span>
-                     </div>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">Usuário Ação:</span>
-                        <span className="text-[#333] text-[13px] font-bold">{data.usuarioAcao || "Não informado"}</span>
-                     </div>
-                  </div>
-
-                  {/* Cargas */}
-                  <div>
-                     <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider border-b border-[#690c76]/20 pb-2">Cargas</h5>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">Cargas (IN/H):</span>
-                        <span className="text-[#333] text-[13px] font-bold">{data.cargasINH}</span>
-                     </div>
-                     <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                        <span className="text-[#666] text-[13px]">Cargas (IZ):</span>
-                        <span className="text-[#333] text-[13px] font-bold">{data.cargasIZ}</span>
-                     </div>
+                {/* Coluna 1: Informações + Cargas - Organizado em lista única para alinhar bordas */}
+                <div className="flex flex-col gap-3">
+                  <h5 className="text-[#007bff] text-[13px] font-bold uppercase tracking-wider border-b border-[#007bff]/20 pb-2 text-center">Informações</h5>
+                  <div className="flex flex-col">
+                     {renderRow("Usuário Sistema", data.usuario)}
+                     {renderRow("Usuário Operação", data.usuarioOperacao)}
+                     {renderRow("Usuário Ação", data.usuarioAcao)}
+                     {renderRow("Turno", data.turno)}
+                     {renderRow("CIA", data.cia)}
+                     {renderRow("Cargas (IN/H)", String(data.cargasINH))}
+                     {renderRow("Cargas (IZ)", String(data.cargasIZ))}
                   </div>
                 </div>
 
-                {/* Right Column: Timeline */}
-                <div>
-                   <h5 className="text-[#690c76] text-[13px] mb-[12px] font-bold uppercase tracking-wider border-b border-[#690c76]/20 pb-2">Timeline</h5>
-                   
-                   <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                      <span className="text-[#555] text-[13px] font-medium">Manifesto Puxado:</span>
-                      <span className="text-[#333] text-[13px] font-bold">{formatDate(data.dataHoraPuxado)}</span>
+                {/* Coluna 2: Timeline Operacional */}
+                <div className="flex flex-col gap-3">
+                   <h5 className="text-[#007bff] text-[13px] font-bold uppercase tracking-wider border-b border-[#007bff]/20 pb-2 text-center">Timeline Operacional</h5>
+                   <div className="flex flex-col">
+                      {renderTimelineRow("Manifesto Puxado", data.dataHoraPuxado)}
+                      {renderTimelineRow("Manifesto Recebido", data.dataHoraRecebido)}
+                      
+                      <div className="my-1 border-t border-dashed border-gray-200 opacity-50"></div>
+
+                      {renderTimelineRow("Manifesto Iniciado", data.dataHoraIniciado)}
+                      {renderTimelineRow("Manifesto Disponível", data.dataHoraDisponivel)}
+                      {renderTimelineRow("Manifesto Em Conferência", data.dataHoraConferencia)}
+                      {renderTimelineRow("Manifesto Pendente", data.dataHoraPendente)}
+                      {renderTimelineRow("Manifesto Completo", data.dataHoraCompleto)}
                    </div>
-                   <div className="flex justify-between py-[8px] border-b border-[#f0f0f0]">
-                      <span className="text-[#555] text-[13px] font-medium">Manifesto Recebido:</span>
-                      <span className="text-[#333] text-[13px] font-bold">{formatDate(data.dataHoraRecebido)}</span>
-                   </div>
-                   
-                   {/* Exibição direta das colunas do banco, independente do status atual */}
-                   {renderSimpleRow("Manifesto Iniciado", data.dataHoraIniciado)}
-                   {renderSimpleRow("Manifesto Disponível", data.dataHoraDisponivel)}
-                   {renderSimpleRow("Manifesto em Conferência", data.dataHoraConferencia)}
-                   {renderSimpleRow("Manifesto Pendente", data.dataHoraPendente)}
-                   {renderSimpleRow("Manifesto Completo", data.dataHoraCompleto)}
                 </div>
 
               </div>
            </div>
 
+           {/* Seção de Eventos / Log de Alterações */}
+           {events.length > 0 && (
+             <div className="bg-gray-50 border border-gray-200 rounded-[12px] p-[25px]">
+                <h4 className="text-[#007bff] text-[15px] font-bold mb-6 flex items-center gap-2">
+                   Registro de Alterações
+                </h4>
+                
+                <div className="relative border-l-2 border-[#007bff]/30 ml-3 space-y-8">
+                   {events.map((event, index) => {
+                      const isEdit = event.Ação === "Edição de Dados";
+                      const diffs = isEdit ? getEventDiff(event, index) : null;
+                      
+                      return (
+                        <div key={event.id} className="relative pl-8">
+                           {/* Dot */}
+                           <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
+                              isEdit ? 'bg-orange-500' : 
+                              event.Ação.includes('Cancel') || event.Ação.includes('Excluir') ? 'bg-red-500' :
+                              event.Ação.includes('Registro') ? 'bg-green-500' : 'bg-[#007bff]'
+                           }`}></div>
+
+                           {/* Content Card */}
+                           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                              <div className="flex flex-col md:flex-row justify-between md:items-center gap-2 mb-2">
+                                 <span className="font-bold text-[#333] text-sm">{event.Ação}</span>
+                                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                    {formatDate(event["Carimbo_Data/HR"])}
+                                 </span>
+                              </div>
+                              
+                              <div className="text-xs text-gray-600 mb-2">
+                                 <strong className="text-[#007bff]">Usuário Ação:</strong> {event["Usuario_Ação"] || event.Usuario_Action || event.Usuario_Sistema}
+                              </div>
+                              
+                              {event.Justificativa && (
+                                 <div className="text-xs text-gray-500 italic bg-gray-50 p-2 rounded border border-gray-100 mb-3">
+                                    "{event.Justificativa}"
+                                 </div>
+                              )}
+
+                              {/* Diff View (Se houver alterações detectadas) */}
+                              {diffs && (
+                                 <div className="mt-3">
+                                    <h6 className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-2">Alterações Realizadas</h6>
+                                    <div className="grid gap-2">
+                                       {diffs.map((diff, i) => (
+                                          <div key={i} className="flex items-center text-xs bg-orange-50 border border-orange-100 p-2 rounded">
+                                             <span className="font-semibold text-gray-700 w-[100px] shrink-0">{diff.field}:</span>
+                                             <span className="text-red-500 line-through mr-2 opacity-70 truncate max-w-[120px]" title={String(diff.old)}>
+                                                {diff.old}
+                                             </span>
+                                             <ArrowRight size={12} className="text-gray-400 mx-1 shrink-0" />
+                                             <span className="text-green-600 font-bold truncate max-w-[120px]" title={String(diff.new)}>
+                                                {diff.new}
+                                             </span>
+                                          </div>
+                                       ))}
+                                    </div>
+                                 </div>
+                              )}
+                           </div>
+                        </div>
+                      );
+                   })}
+                </div>
+             </div>
+           )}
+
         </div>
 
         {/* Footer */}
-        <div className="p-[20px] border-t border-[#eee] bg-[#f9f9f9]">
-           <button onClick={onClose} className="w-full bg-gradient-to-br from-[#690c76] to-[#4d0557] text-white border-none p-[12px] rounded-[8px] cursor-pointer font-semibold text-[14px] shadow-[0_4px_15px_rgba(105,12,118,0.3)] hover:-translate-y-[1px] transition-all uppercase tracking-wide">
+        <div className="p-[15px] border-t border-[#eee] bg-[#f9f9f9] rounded-b-[20px] flex justify-center">
+           {/* Botão reduzido e centralizado */}
+           <button onClick={onClose} className="w-full max-w-[300px] bg-gradient-to-br from-[#007bff] to-[#0056b3] text-white border-none p-[10px] rounded-[8px] cursor-pointer font-semibold text-[14px] shadow-[0_4px_15px_rgba(0,123,255,0.3)] hover:-translate-y-[1px] transition-all uppercase tracking-wide">
              Fechar
            </button>
         </div>
@@ -342,6 +451,14 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({ data, onClose }) => 
 export const CancellationModal: React.FC<{ onConfirm: (justificativa: string) => void, onClose: () => void }> = ({ onConfirm, onClose }) => {
   const [step, setStep] = React.useState<'confirm' | 'justify'>('confirm');
   const [justificativa, setJustificativa] = React.useState('');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handleConfirmStep = () => {
     setStep('justify');
@@ -418,6 +535,14 @@ export const AnularModal: React.FC<{ onConfirm: (justificativa: string) => void,
   const [step, setStep] = React.useState<'confirm' | 'justify'>('confirm');
   const [justificativa, setJustificativa] = React.useState('');
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleConfirmStep = () => {
     setStep('justify');
   };
@@ -482,6 +607,190 @@ export const AnularModal: React.FC<{ onConfirm: (justificativa: string) => void,
                 Confirmar
               </button>
             </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export const DeliveryModal: React.FC<{ 
+  data: Manifesto; 
+  onConfirm: (type: 'Parcial' | 'Completa', quantities?: { inh: number, iz: number }) => void; 
+  onClose: () => void 
+}> = ({ data, onConfirm, onClose }) => {
+  const [step, setStep] = useState<'select' | 'form'>('select');
+  const [inhInput, setInhInput] = useState('');
+  const [izInput, setIzInput] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handlePartialSubmit = () => {
+    const inh = Number(inhInput);
+    const iz = Number(izInput);
+
+    if (inhInput === '' || izInput === '') {
+       setErrorMsg("Preencha todos os campos.");
+       return;
+    }
+    if (isNaN(inh) || isNaN(iz)) {
+       setErrorMsg("Valores inválidos.");
+       return;
+    }
+    if (inh < 0 || iz < 0) {
+       setErrorMsg("Valores não podem ser negativos.");
+       return;
+    }
+    if (inh === 0 && iz === 0) {
+       setErrorMsg("Pelo menos uma carga deve ser entregue.");
+       return;
+    }
+    
+    // Valida se não está tentando entregar mais do que existe
+    if (inh > data.cargasINH) {
+       setErrorMsg(`Cargas IN/H não pode ser maior que o total (${data.cargasINH}).`);
+       return;
+    }
+    if (iz > data.cargasIZ) {
+       setErrorMsg(`Cargas IZ não pode ser maior que o total (${data.cargasIZ}).`);
+       return;
+    }
+
+    onConfirm('Parcial', { inh, iz });
+  };
+
+  return (
+    <div className="fixed top-0 left-0 w-full h-full bg-black/85 z-[10000] flex items-center justify-center backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white p-[30px] rounded-[24px] min-w-[400px] max-w-[600px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-fadeInScale flex flex-col items-center text-center border-t-[6px] border-[#28a745]">
+        
+        <div className="w-[70px] h-[70px] bg-[#28a745]/10 rounded-full flex items-center justify-center mb-[20px] animate-pulse-dot">
+          <span className="text-[30px]">✅</span> 
+        </div>
+
+        <h3 className="text-[#333] text-[22px] font-bold mb-[12px]">Entregar Manifesto</h3>
+        
+        {step === 'select' ? (
+          <>
+            <p className="text-gray-500 text-[14px] mb-[30px] leading-relaxed px-[10px]">
+              Selecione o tipo de entrega para registrar no sistema.
+            </p>
+            
+            <div className="flex gap-[12px] w-full">
+              <button 
+                onClick={() => setStep('form')} 
+                className="flex-1 bg-white border-2 border-[#ffc107] text-[#ffc107] p-[14px] rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-[#ffc107] hover:text-black transition-all uppercase tracking-wide"
+              >
+                Parcial
+              </button>
+              <button 
+                onClick={() => onConfirm('Completa')} 
+                className="flex-1 bg-gradient-to-br from-[#28a745] to-[#218838] text-white border-none p-[14px] rounded-[12px] font-bold text-[14px] cursor-pointer shadow-[0_4px_15px_rgba(40,167,69,0.3)] hover:-translate-y-[1px] transition-all uppercase tracking-wide"
+              >
+                Completa
+              </button>
+            </div>
+            
+            <button 
+                onClick={onClose} 
+                className="mt-[20px] w-full bg-gray-100 text-gray-600 border-none p-[12px] rounded-[12px] font-bold text-[13px] cursor-pointer hover:bg-gray-200 transition-all uppercase tracking-wide"
+            >
+                Cancelar
+            </button>
+          </>
+        ) : (
+          <div className="w-full animate-slideIn-novo text-left">
+             <div className="bg-gray-50 border border-gray-200 rounded-[12px] p-4 mb-5">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 border-b border-gray-200 pb-2">Quantidade Total (Disponível)</div>
+                <div className="flex justify-between items-center mb-1">
+                   <span className="text-sm text-gray-600">Cargas (IN/H):</span>
+                   <span className="text-sm font-bold text-[#333]">{data.cargasINH}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                   <span className="text-sm text-gray-600">Cargas (IZ):</span>
+                   <span className="text-sm font-bold text-[#333]">{data.cargasIZ}</span>
+                </div>
+             </div>
+
+             <div className="mb-5">
+                <div className="text-xs font-bold text-[#28a745] uppercase tracking-wide mb-3">Quantidade Parcialmente Entregue</div>
+                
+                <div className="flex gap-3">
+                   <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Entregue IN/H</label>
+                      <input 
+                         type="number"
+                         min="0"
+                         max={data.cargasINH}
+                         value={inhInput}
+                         onChange={(e) => { 
+                            let val = e.target.value;
+                            const num = Number(val);
+                            if (val !== '' && num > data.cargasINH) {
+                               val = String(data.cargasINH);
+                            }
+                            if (val !== '' && num < 0) {
+                               val = '0';
+                            }
+                            setInhInput(val); 
+                            setErrorMsg(null); 
+                         }}
+                         className="w-full p-[10px] border-2 border-gray-200 rounded-[8px] text-sm focus:border-[#ffc107] outline-none text-center font-bold text-gray-800 bg-white"
+                         placeholder="0"
+                      />
+                   </div>
+                   <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Entregue IZ</label>
+                      <input 
+                         type="number"
+                         min="0"
+                         max={data.cargasIZ}
+                         value={izInput}
+                         onChange={(e) => { 
+                            let val = e.target.value;
+                            const num = Number(val);
+                            if (val !== '' && num > data.cargasIZ) {
+                               val = String(data.cargasIZ);
+                            }
+                            if (val !== '' && num < 0) {
+                               val = '0';
+                            }
+                            setIzInput(val); 
+                            setErrorMsg(null); 
+                         }}
+                         className="w-full p-[10px] border-2 border-gray-200 rounded-[8px] text-sm focus:border-[#ffc107] outline-none text-center font-bold text-gray-800 bg-white"
+                         placeholder="0"
+                      />
+                   </div>
+                </div>
+             </div>
+
+             {errorMsg && (
+                <div className="mb-4 text-xs text-red-500 font-bold bg-red-50 p-2 rounded border border-red-100 flex items-center gap-1">
+                   <AlertTriangle size={12} /> {errorMsg}
+                </div>
+             )}
+
+             <div className="flex gap-[12px] w-full mt-2">
+                <button 
+                   onClick={() => setStep('select')} 
+                   className="flex items-center justify-center gap-2 flex-1 bg-gray-100 text-gray-600 border-none p-[12px] rounded-[12px] font-bold text-[13px] cursor-pointer hover:bg-gray-200 transition-all"
+                >
+                   <ArrowLeft size={14} /> Voltar
+                </button>
+                <button 
+                   onClick={handlePartialSubmit} 
+                   className="flex-1 bg-gradient-to-br from-[#28a745] to-[#218838] text-white border-none p-[12px] rounded-[12px] font-bold text-[13px] cursor-pointer shadow-[0_4px_15px_rgba(40,167,69,0.3)] hover:-translate-y-[1px] transition-all uppercase tracking-wide"
+                >
+                   Confirmar Entrega
+                </button>
+             </div>
           </div>
         )}
       </div>

@@ -24,6 +24,24 @@ export interface Manifesto {
   dataHoraCompleto?: string;
 }
 
+export interface ManifestoEvent {
+  id: number;
+  ID_Manifesto: string;
+  Usuario_Sistema: string;
+  Usuario_Action?: string;
+  "Usuario_Ação"?: string; // Variação com acento
+  Usuario_Operação?: string;
+  CIA: string;
+  "Cargas_(IN/H)": number;
+  "Cargas_(IZ)": number;
+  Manifesto_Puxado: string;
+  Manifesto_Recebido: string;
+  Status: string;
+  Ação: string;
+  Justificativa: string;
+  "Carimbo_Data/HR": string;
+}
+
 export interface ManifestoLog {
   timestamp: string;
   usuario: string;
