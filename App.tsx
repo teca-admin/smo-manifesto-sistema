@@ -108,8 +108,9 @@ function App() {
     let maxSeq = 0;
     currentList.forEach(m => {
       if (m.id && m.id.startsWith(prefix)) {
-        // Regex robusto para pegar números do final da string
-        const match = m.id.match(/(\d+)$/);
+        // CORRIGIDO: Remove prefixo para extrair apenas a parte sequencial
+        const sequencePart = m.id.substring(prefix.length);
+        const match = sequencePart.match(/(\d+)$/);
         if (match) {
            const seq = parseInt(match[1], 10);
            if (!isNaN(seq) && seq > maxSeq) {
@@ -142,12 +143,20 @@ function App() {
 
         if (data && data.length > 0) {
             const lastId = data[0].ID_Manifesto;
-            const match = lastId.match(/(\d+)$/);
-            if (match) {
-                const seq = parseInt(match[1], 10);
-                const newId = `${prefix}${(seq + 1).toString().padStart(7, '0')}`;
-                setNextId(newId);
-                return newId;
+            
+            // CORREÇÃO: Verifica se o ID começa com o prefixo e extrai a sequência corretamente
+            // Isso evita que o ano (Ex: 25) seja capturado como parte do número sequencial
+            if (lastId.startsWith(prefix)) {
+                const sequencePart = lastId.substring(prefix.length);
+                const match = sequencePart.match(/(\d+)$/);
+
+                if (match) {
+                    const seq = parseInt(match[1], 10);
+                    // Incrementa e formata
+                    const newId = `${prefix}${(seq + 1).toString().padStart(7, '0')}`;
+                    setNextId(newId);
+                    return newId;
+                }
             }
         }
         

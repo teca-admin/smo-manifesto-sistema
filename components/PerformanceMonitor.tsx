@@ -157,7 +157,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
 
     const syncToCloud = async () => {
        // Verifica se tem algo para enviar (qualquer buffer)
-       const hasData = bufferReqs.current > 0 || bufferN8N.current > 0 || Object.values(bufferActions.current).some(v => v > 0);
+       const hasData = bufferReqs.current > 0 || bufferN8N.current > 0 || (Object.values(bufferActions.current) as number[]).some(v => v > 0);
 
        if (!hasData) return;
 
@@ -386,7 +386,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({ manifest
     if (!stats?.detalhes_hora) return <div className="text-gray-500 text-xs py-8 text-center flex items-center justify-center gap-2"><BarChart2 size={16}/> Aguardando dados de polling...</div>;
 
     const labels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
-    const values = Object.values(stats.detalhes_hora);
+    const values = Object.values(stats.detalhes_hora) as number[];
     // AJUSTE: Removemos o limite mínimo de 10 para 1. Agora o gráfico sobe proporcionalmente mesmo com poucos dados.
     const maxVal = Math.max(...values, 1);
 
