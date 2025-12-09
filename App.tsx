@@ -491,17 +491,13 @@ function App() {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} loading={loading} setLoading={setLoading} />;
   }
 
-  const visibleManifestos = manifestos.filter(
-    m => m.status !== 'Manifesto Cancelado' && m.status !== 'Manifesto Completo'
-  );
-
   return (
     <>
       <Dashboard 
         currentUser={currentUser!}
         onLogout={handleLogout}
         isLoggingOut={isLoggingOut}
-        manifestos={visibleManifestos}
+        manifestos={manifestos}
         onSave={handleSaveNew}
         onAction={handleAction}
         openHistory={handleOpenHistory}
