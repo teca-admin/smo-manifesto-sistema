@@ -107,10 +107,12 @@ function App() {
   const generateNextIdLocal = (currentList: Manifesto[], prefix: string) => {
     let maxSeq = 0;
     currentList.forEach(m => {
-      if (m.id && m.id.startsWith(prefix)) {
+      // Validate ID format: Prefix + exactly 7 digits (Total length = prefix length + 7)
+      // This prevents issues where IDs like 'MAO25...' (badly generated) mess up the sequence
+      if (m.id && m.id.startsWith(prefix) && m.id.length === (prefix.length + 7)) {
         // CORRIGIDO: Remove prefixo para extrair apenas a parte sequencial
         const sequencePart = m.id.substring(prefix.length);
-        const match = sequencePart.match(/(\d+)$/);
+        const match = sequencePart.match(/^(\d+)$/);
         if (match) {
            const seq = parseInt(match[1], 10);
            if (!isNaN(seq) && seq > maxSeq) {
@@ -128,42 +130,50 @@ function App() {
   const fetchNextId = useCallback(async () => {
       const now = new Date();
       const year = now.getFullYear().toString().slice(-2); 
-      const prefix = `MAO - ${year}`;
+      // PADRÃO SOLICITADO: MAO + HIFEN + ANO + SEQUENCIA (Ex: MAO-250000001)
+      const prefix = `MAO-${year}`;
 
       try {
-        // Busca o ÚLTIMO ID criado na tabela de EVENTOS (Histórico completo)
+        // Busca os ÚLTIMOS IDs criados na tabela de EVENTOS (Histórico completo)
+        // Aumentado limit para 20 para pular eventuais IDs malformados no topo (Ex: 2525...)
         const { data, error } = await supabase
           .from('SMO_Sistema_Eventos') // <--- CORRIGIDO: Consulta a tabela de Eventos
           .select('ID_Manifesto')
-          .ilike('ID_Manifesto', `${prefix}%`) // Case insensitive like "MAO - 25%"
+          .ilike('ID_Manifesto', `${prefix}%`) // like "MAO-25%"
           .order('ID_Manifesto', { ascending: false }) // Pega o maior
-          .limit(1);
+          .limit(20);
         
         if (error) throw error;
 
-        if (data && data.length > 0) {
-            const lastId = data[0].ID_Manifesto;
-            
-            // CORREÇÃO: Verifica se o ID começa com o prefixo e extrai a sequência corretamente
-            // Isso evita que o ano (Ex: 25) seja capturado como parte do número sequencial
-            if (lastId.startsWith(prefix)) {
-                const sequencePart = lastId.substring(prefix.length);
-                const match = sequencePart.match(/(\d+)$/);
+        let maxSeq = 0;
 
-                if (match) {
-                    const seq = parseInt(match[1], 10);
-                    // Incrementa e formata
-                    const newId = `${prefix}${(seq + 1).toString().padStart(7, '0')}`;
-                    setNextId(newId);
-                    return newId;
+        if (data && data.length > 0) {
+            for (const row of data) {
+                const id = row.ID_Manifesto;
+                
+                // Strict validation: Must be prefix + 7 digits (Total 13 chars for MAO-25)
+                // This avoids capturing IDs that are malformed or from old formats
+                if (id && id.startsWith(prefix) && id.length === (prefix.length + 7)) {
+                    const sequencePart = id.substring(prefix.length);
+                    const match = sequencePart.match(/^(\d+)$/);
+
+                    if (match) {
+                        const seq = parseInt(match[1], 10);
+                        if (seq > maxSeq) {
+                             maxSeq = seq;
+                             break; // Encontrou o maior ID válido
+                        }
+                    }
                 }
             }
         }
         
-        // Se não houver nenhum registro, começa do 1
-        const initialId = `${prefix}0000001`;
-        setNextId(initialId);
-        return initialId;
+        // Incrementa e formata
+        const nextSeq = maxSeq + 1;
+        const newId = `${prefix}${nextSeq.toString().padStart(7, '0')}`;
+        
+        setNextId(newId);
+        return newId;
 
       } catch (err) {
         console.error("Erro ao calcular próximo ID via banco, usando fallback local:", err);

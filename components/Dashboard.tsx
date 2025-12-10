@@ -346,7 +346,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             
             {(() => {
               const currentM = manifestos.find(m => m.id === menuOpenId);
-              const canEntregar = currentM && currentM.status === 'Manifesto Completo';
+              // Updated to include 'Manifesto Pendente'
+              const canEntregar = currentM && (currentM.status === 'Manifesto Completo' || currentM.status === 'Manifesto Pendente');
               
               return (
                 <button 
@@ -366,8 +367,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {(() => {
               const currentM = manifestos.find(m => m.id === menuOpenId);
               // Enable for any status EXCEPT 'Manifesto Recebido'
-              // Explicitly ensuring 'Manifesto Iniciado' is allowed per user request
-              const canAnular = currentM && (currentM.status?.trim() !== 'Manifesto Recebido' || currentM.status === 'Manifesto Iniciado');
+              // Explicitly ensuring 'Manifesto Iniciado' and 'Manifesto Pendente' are allowed per user request
+              const canAnular = currentM && (
+                  currentM.status?.trim() !== 'Manifesto Recebido' || 
+                  currentM.status === 'Manifesto Iniciado' ||
+                  currentM.status === 'Manifesto Pendente'
+              );
               
               return (
                 <button 
