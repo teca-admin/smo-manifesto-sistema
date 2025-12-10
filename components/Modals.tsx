@@ -666,6 +666,8 @@ export const DeliveryModal: React.FC<{
     onConfirm('Parcial', { inh, iz });
   };
 
+  const isPending = data.status === 'Manifesto Pendente';
+
   return (
     <div className="fixed top-0 left-0 w-full h-full bg-black/85 z-[10000] flex items-center justify-center backdrop-blur-sm animate-fadeIn">
       <div className="bg-white p-[30px] rounded-[24px] min-w-[400px] max-w-[600px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-fadeInScale flex flex-col items-center text-center border-t-[6px] border-[#28a745]">
@@ -684,8 +686,13 @@ export const DeliveryModal: React.FC<{
             
             <div className="flex gap-[12px] w-full">
               <button 
-                onClick={() => setStep('form')} 
-                className="flex-1 bg-white border-2 border-[#ffc107] text-[#ffc107] p-[14px] rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-[#ffc107] hover:text-black transition-all uppercase tracking-wide"
+                onClick={() => !isPending && setStep('form')} 
+                disabled={isPending}
+                className={`flex-1 p-[14px] rounded-[12px] font-bold text-[14px] transition-all uppercase tracking-wide
+                  ${isPending 
+                    ? 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white border-2 border-[#ffc107] text-[#ffc107] cursor-pointer hover:bg-[#ffc107] hover:text-black'}
+                `}
               >
                 Parcial
               </button>
