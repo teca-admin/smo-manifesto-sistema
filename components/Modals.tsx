@@ -623,12 +623,13 @@ export const AnularModal: React.FC<{ onConfirm: (justificativa: string) => void,
 
 export const DeliveryModal: React.FC<{ 
   data: Manifesto; 
-  onConfirm: (type: 'Parcial' | 'Completa', quantities?: { inh: number, iz: number }) => void; 
+  onConfirm: (type: 'Parcial' | 'Completa', quantities?: { inh: number, iz: number }, justificativa?: string) => void; 
   onClose: () => void 
 }> = ({ data, onConfirm, onClose }) => {
-  const [step, setStep] = useState<'select' | 'form'>('select');
+  const [step, setStep] = useState<'select' | 'form' | 'justify'>('select');
   const [inhInput, setInhInput] = useState('');
   const [izInput, setIzInput] = useState('');
+  const [justificativa, setJustificativa] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -673,7 +674,29 @@ export const DeliveryModal: React.FC<{
     onConfirm('Parcial', { inh, iz });
   };
 
-  const isPending = data.status === 'Manifesto Pendente';
+  const handleJustifySubmit = () => {
+    if (!justificativa.trim()) {
+      setErrorMsg("A justificativa é obrigatória.");
+      return;
+    }
+    if (justificativa.length < 5) {
+      setErrorMsg("Justificativa muito curta.");
+      return;
+    }
+    onConfirm('Completa', undefined, justificativa);
+  };
+
+  // Normaliza o status para comparação segura
+  const isPending = data.status?.trim() === 'Manifesto Pendente';
+  const isPartialDisabled = true; // Force disabled as requested
+
+  const handleCompleteClick = () => {
+    if (isPending) {
+      setStep('justify');
+    } else {
+      onConfirm('Completa');
+    }
+  };
 
   return (
     <div className="fixed top-0 left-0 w-full h-full bg-black/85 z-[10000] flex items-center justify-center backdrop-blur-sm animate-fadeIn">
@@ -685,7 +708,7 @@ export const DeliveryModal: React.FC<{
 
         <h3 className="text-[#333] text-[22px] font-bold mb-[12px]">Entregar Manifesto</h3>
         
-        {step === 'select' ? (
+        {step === 'select' && (
           <>
             <p className="text-gray-500 text-[14px] mb-[30px] leading-relaxed px-[10px]">
               Selecione o tipo de entrega para registrar no sistema.
@@ -693,21 +716,22 @@ export const DeliveryModal: React.FC<{
             
             <div className="flex gap-[12px] w-full">
               <button 
-                onClick={() => !isPending && setStep('form')} 
-                disabled={isPending}
+                onClick={() => !isPartialDisabled && !isPending && setStep('form')} 
+                disabled={isPartialDisabled || isPending}
                 className={`flex-1 p-[14px] rounded-[12px] font-bold text-[14px] transition-all uppercase tracking-wide
-                  ${isPending 
-                    ? 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed' 
+                  ${(isPartialDisabled || isPending) 
+                    ? 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed opacity-60' 
                     : 'bg-white border-2 border-[#ffc107] text-[#ffc107] cursor-pointer hover:bg-[#ffc107] hover:text-black'}
                 `}
+                title={(isPartialDisabled || isPending) ? "Opção temporariamente desabilitada" : ""}
               >
                 Parcial
               </button>
               <button 
-                onClick={() => onConfirm('Completa')} 
+                onClick={handleCompleteClick} 
                 className="flex-1 bg-gradient-to-br from-[#28a745] to-[#218838] text-white border-none p-[14px] rounded-[12px] font-bold text-[14px] cursor-pointer shadow-[0_4px_15px_rgba(40,167,69,0.3)] hover:-translate-y-[1px] transition-all uppercase tracking-wide"
               >
-                Completa
+                {isPending ? 'Parcial' : 'Completa'}
               </button>
             </div>
             
@@ -718,7 +742,9 @@ export const DeliveryModal: React.FC<{
                 Cancelar
             </button>
           </>
-        ) : (
+        )}
+
+        {step === 'form' && (
           <div className="w-full animate-slideIn-novo text-left">
              <div className="bg-gray-50 border border-gray-200 rounded-[12px] p-4 mb-5">
                 <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 border-b border-gray-200 pb-2">Quantidade Total (Disponível)</div>
@@ -803,6 +829,46 @@ export const DeliveryModal: React.FC<{
                    className="flex-1 bg-gradient-to-br from-[#28a745] to-[#218838] text-white border-none p-[12px] rounded-[12px] font-bold text-[13px] cursor-pointer shadow-[0_4px_15px_rgba(40,167,69,0.3)] hover:-translate-y-[1px] transition-all uppercase tracking-wide"
                 >
                    Confirmar Entrega
+                </button>
+             </div>
+          </div>
+        )}
+
+        {step === 'justify' && (
+          <div className="w-full animate-slideIn-novo text-left">
+            <h4 className="text-[#333] text-[16px] font-bold mb-[10px] text-center">
+              Justificativa Obrigatória
+            </h4>
+            <p className="text-gray-500 text-[13px] mb-[15px] text-center">
+              Para manifestos pendentes, é necessário justificar a entrega completa.
+            </p>
+            
+            <textarea 
+              value={justificativa}
+              onChange={e => { setJustificativa(e.target.value); if(errorMsg) setErrorMsg(null); }}
+              placeholder="Descreva o motivo..." 
+              className={`w-full h-[100px] p-[12px] border-2 ${errorMsg ? 'border-[#dc3545]' : 'border-[#e0e0e0]'} rounded-[12px] text-[14px] resize-none focus:outline-none focus:border-[#28a745] transition-all mb-[15px] bg-gray-50 text-gray-900`}
+              autoFocus
+            ></textarea>
+
+            {errorMsg && (
+              <div className="mb-4 text-xs text-red-500 font-bold bg-red-50 p-2 rounded border border-red-100 flex items-center gap-1 justify-center">
+                  <AlertTriangle size={12} /> {errorMsg}
+              </div>
+            )}
+
+            <div className="flex gap-[12px] w-full mt-2">
+                <button 
+                   onClick={() => setStep('select')} 
+                   className="flex items-center justify-center gap-2 flex-1 bg-gray-100 text-gray-600 border-none p-[12px] rounded-[12px] font-bold text-[13px] cursor-pointer hover:bg-gray-200 transition-all"
+                >
+                   <ArrowLeft size={14} /> Voltar
+                </button>
+                <button 
+                   onClick={handleJustifySubmit} 
+                   className="flex-1 bg-gradient-to-br from-[#28a745] to-[#218838] text-white border-none p-[12px] rounded-[12px] font-bold text-[13px] cursor-pointer shadow-[0_4px_15px_rgba(40,167,69,0.3)] hover:-translate-y-[1px] transition-all uppercase tracking-wide"
+                >
+                   Confirmar
                 </button>
              </div>
           </div>

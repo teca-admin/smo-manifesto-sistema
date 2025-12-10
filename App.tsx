@@ -536,7 +536,7 @@ function App() {
       }
   };
 
-  const handleConfirmDelivery = async (type: 'Parcial' | 'Completa', quantities?: { inh: number, iz: number }) => {
+  const handleConfirmDelivery = async (type: 'Parcial' | 'Completa', quantities?: { inh: number, iz: number }, justificativa?: string) => {
       await verifySessionIntegrity();
       if (!currentUserRef.current) return;
 
@@ -546,17 +546,28 @@ function App() {
       const id = deliveryId;
       setDeliveryId(null);
 
+      // Verifica se é Manifesto Pendente para aplicar lógica específica
+      const isPending = currentManifesto?.status?.trim() === 'Manifesto Pendente';
+
       setLoadingMsg(`Registrando Entrega ${type}...`);
+      
+      // Define ação com base no tipo e se é pendente
+      let actionName = type === 'Completa' ? "Entrega Completa" : "Entrega Parcial";
+      if (isPending) {
+         actionName = "Entrega com carga Pendente";
+      }
+
       try {
           const payload = {
-             Action: type === 'Completa' ? "Entrega Completa" : "Entrega Parcial",
+             Action: actionName,
              id: id,
              usuario: currentUser?.Usuario,
              Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
              'Carimbo_Data/HR': getCurrentTimestampSQL(),
-             // Adiciona quantidades entregues se fornecidas (Parcial), ou usa o total (Completa)
+             // Adiciona quantidades entregues se fornecidas (Parcial), ou usa o total (Completa ou Pendente que finaliza)
              Entregue_INH: quantities ? quantities.inh : (currentManifesto?.cargasINH || 0),
-             Entregue_IZ: quantities ? quantities.iz : (currentManifesto?.cargasIZ || 0)
+             Entregue_IZ: quantities ? quantities.iz : (currentManifesto?.cargasIZ || 0),
+             justificativa: justificativa || '' // Inclui a justificativa (ou string vazia)
           };
 
           const response = await fetch(N8N_WEBHOOK_CANCEL, {
@@ -567,7 +578,7 @@ function App() {
 
           if (!response.ok) throw new Error("Erro na comunicação com servidor");
 
-          showAlert('success', `Manifesto marcado como Entregue (${type})!`);
+          showAlert('success', `Manifesto marcado como Entregue (${isPending ? 'Pendente' : type})!`);
           trackPerformanceAction('edicao'); 
           await fetchManifestos();
 
