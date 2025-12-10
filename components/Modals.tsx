@@ -36,6 +36,10 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
   const [justificativa, setJustificativa] = React.useState('');
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
+  // Check if editing is restricted based on status (case insensitive)
+  const statusNormalized = data.status?.toLowerCase().trim() || '';
+  const isRestricted = statusNormalized === 'manifesto disponível' || statusNormalized === 'manifesto em conferência';
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -125,6 +129,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
                value={formData.cia} 
                onChange={(val) => { setFormData({...formData, cia: val}); if(errorMsg) setErrorMsg(null); }}
                placeholder="Selecione a CIA"
+               disabled={isRestricted}
             />
           </div>
           <div>
@@ -133,6 +138,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
                value={formData.dataHoraPuxado} 
                onChange={(val) => { setFormData({...formData, dataHoraPuxado: val}); if(errorMsg) setErrorMsg(null); }}
                placeholder="dd/mm/aaaa --:--"
+               disabled={isRestricted}
              />
           </div>
           <div>
@@ -141,6 +147,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
                value={formData.dataHoraRecebido} 
                onChange={(val) => { setFormData({...formData, dataHoraRecebido: val}); if(errorMsg) setErrorMsg(null); }}
                placeholder="dd/mm/aaaa --:--"
+               disabled={isRestricted}
              />
           </div>
           <div className="flex gap-4">

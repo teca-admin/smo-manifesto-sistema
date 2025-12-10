@@ -391,8 +391,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
             
             {(() => {
               const currentM = manifestos.find(m => m.id === menuOpenId);
-              // Somente permite editar se o status for 'Manifesto Recebido' ou 'Manifesto Iniciado'
-              const canEdit = currentM && ['Manifesto Recebido', 'Manifesto Iniciado'].includes(currentM.status);
+              // Somente permite editar se o status for 'Manifesto Recebido', 'Manifesto Iniciado', 'Manifesto Disponível' ou 'Manifesto Em Conferência'
+              // Normaliza para lowercase para evitar problemas de case sensitivity
+              const status = currentM?.status?.toLowerCase().trim() || '';
+              const allowedStatuses = [
+                'manifesto recebido', 
+                'manifesto iniciado', 
+                'manifesto disponível', 
+                'manifesto em conferência'
+              ];
+              const canEdit = allowedStatuses.includes(status);
               
               return (
                 <button 
