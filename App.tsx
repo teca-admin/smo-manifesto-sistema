@@ -86,21 +86,35 @@ function App() {
       }
   };
 
-  const getCurrentTimestampSQL = () => {
+  const getCurrentTimestampBR = () => {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    // FORMATO ORDENADO: dd/mm/aaaa hh:mm:ss
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   };
 
   const formatForN8N = (dateStr?: string) => {
     if (!dateStr) return undefined;
-    // Garante formato compatível com SQL removendo o 'T' ISO
-    return dateStr.replace('T', ' ');
+    
+    // Converte entrada (provavelmente ISO YYYY-MM-DDTHH:mm) para Date object
+    const date = new Date(dateStr);
+    
+    if (isNaN(date.getTime())) return dateStr;
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    // FORMATO ORDENADO: dd/mm/aaaa hh:mm:ss
+    // Adiciona :00 nos segundos pois inputs html geralmente não tem segundos
+    return `${day}/${month}/${year} ${hours}:${minutes}:00`;
   };
 
   // Lógica local de fallback (caso o banco falhe)
@@ -349,7 +363,7 @@ function App() {
     try {
       // Garante que temos o ID mais atualizado possível antes de salvar
       const calculatedId = await fetchNextId();
-      const currentTimestamp = getCurrentTimestampSQL();
+      const currentTimestamp = getCurrentTimestampBR();
       
       let turno = "3 Turno";
       if (data.dataHoraRecebido) {
@@ -419,7 +433,7 @@ function App() {
          justificativa: partialData.justificativa,
          Action: "Edição de Dados",
          Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
-         'Carimbo_Data/HR': getCurrentTimestampSQL()
+         'Carimbo_Data/HR': getCurrentTimestampBR()
       };
 
       const response = await fetch(N8N_WEBHOOK_EDIT, {
@@ -474,7 +488,7 @@ function App() {
              usuario: currentUser?.Usuario,
              Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
              justificativa: justificativa,
-             'Carimbo_Data/HR': getCurrentTimestampSQL()
+             'Carimbo_Data/HR': getCurrentTimestampBR()
           };
 
           const response = await fetch(N8N_WEBHOOK_CANCEL, {
@@ -513,7 +527,7 @@ function App() {
              usuario: currentUser?.Usuario,
              Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
              justificativa: justificativa,
-             'Carimbo_Data/HR': getCurrentTimestampSQL()
+             'Carimbo_Data/HR': getCurrentTimestampBR()
           };
 
           const response = await fetch(N8N_WEBHOOK_CANCEL, {
@@ -563,7 +577,7 @@ function App() {
              id: id,
              usuario: currentUser?.Usuario,
              Usuario_Action: currentUser?.Nome_Completo || currentUser?.Usuario,
-             'Carimbo_Data/HR': getCurrentTimestampSQL(),
+             'Carimbo_Data/HR': getCurrentTimestampBR(),
              // Adiciona quantidades entregues se fornecidas (Parcial), ou usa o total (Completa ou Pendente que finaliza)
              Entregue_INH: quantities ? quantities.inh : (currentManifesto?.cargasINH || 0),
              Entregue_IZ: quantities ? quantities.iz : (currentManifesto?.cargasIZ || 0),

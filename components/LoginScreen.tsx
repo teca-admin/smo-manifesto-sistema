@@ -43,7 +43,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      const dataHrEnvio = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      // FORMATO ORDENADO: dd/mm/aaaa hh:mm:ss
+      const dataHrEnvio = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
       // 2. Envia para o n8n validar e salvar a sessão
       const response = await fetch(N8N_WEBHOOK_LOGIN, {
