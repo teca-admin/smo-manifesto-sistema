@@ -191,7 +191,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div>
       <div className="sticky top-0 z-[100] flex flex-col md:flex-row items-center justify-center p-[20px] md:p-[25px_20px] bg-gradient-to-br from-black via-[#4d0770] to-[#2c0040] text-white text-[16pt] md:text-[20pt] font-bold text-center shadow-[0_4px_20px_rgba(0,0,0,0.15)] border-b-[3px] border-white/10">
-        SMO - Software de Manifesto Operacional
+        SMO - Sistema de Manifesto Operacional
         <div className="relative md:absolute md:right-[20px] mt-[15px] md:mt-0 flex flex-col md:flex-row items-center gap-[15px]">
           <span className="bg-white/20 p-[8px_20px] rounded-[20px] text-[13px] font-semibold border-2 border-white/30">
             {currentUser.Nome_Completo}
