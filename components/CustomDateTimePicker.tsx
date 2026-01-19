@@ -22,7 +22,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
 
-  // Sincroniza valor externo com estado interno
+  // Sincroniza valor externo (ISO string) com o input visual
   useEffect(() => {
     if (value) {
       const d = new Date(value);
@@ -39,7 +39,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
     }
   }, [value]);
 
-  // Calcula posição do popover
+  // Calcula posição do popover (Portal)
   useEffect(() => {
     if (isOpen && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
@@ -49,6 +49,26 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
 
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  // Função para processar entrada manual
+  const handleManualInput = (val: string) => {
+    setInputValue(val);
+
+    // Regex para validar formato DD/MM/AAAA HH:MM
+    const regex = /^(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2})$/;
+    const match = val.match(regex);
+
+    if (match) {
+      const [_, day, month, year, hour, minute] = match;
+      const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+      
+      if (!isNaN(parsedDate.getTime())) {
+        setSelectedDate(parsedDate);
+        setViewDate(new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1));
+        onChange(parsedDate.toISOString());
+      }
+    }
+  };
 
   const handleDateSelect = (day: number) => {
     const newDate = selectedDate ? new Date(selectedDate) : new Date();
@@ -74,10 +94,8 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
     const startDay = firstDayOfMonth(year, month);
     const days = [];
 
-    // Espaços vazios
     for (let i = 0; i < startDay; i++) days.push(<div key={`empty-${i}`} className="h-8"></div>);
 
-    // Dias do mês
     for (let d = 1; d <= totalDays; d++) {
       const isSelected = selectedDate?.getDate() === d && selectedDate?.getMonth() === month && selectedDate?.getFullYear() === year;
       const isToday = new Date().getDate() === d && new Date().getMonth() === month && new Date().getFullYear() === year;
@@ -105,20 +123,27 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      <div 
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full h-10 px-3 pr-10 border-2 flex items-center text-xs font-bold transition-all cursor-pointer select-none ${
-          disabled 
-            ? 'bg-slate-100 text-slate-400 border-slate-200' 
-            : isOpen 
-              ? 'bg-white border-indigo-600 text-slate-900' 
-              : 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
-        }`}
-      >
-        <span className={inputValue ? 'text-slate-900' : 'text-slate-300'}>
-          {inputValue || "DD/MM/AAAA HH:MM"}
-        </span>
-        <CalendarIcon size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${isOpen ? 'text-indigo-600' : 'text-slate-400'}`} />
+      <div className="relative">
+        <input 
+          type="text"
+          value={inputValue}
+          onChange={(e) => handleManualInput(e.target.value)}
+          onFocus={() => !disabled && setIsOpen(true)}
+          placeholder="DD/MM/AAAA HH:MM"
+          disabled={disabled}
+          className={`w-full h-10 pl-3 pr-10 border-2 text-xs font-bold transition-all outline-none ${
+            disabled 
+              ? 'bg-slate-100 text-slate-400 border-slate-200' 
+              : isOpen 
+                ? 'bg-white border-indigo-600 text-slate-900' 
+                : 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300 focus:bg-white focus:border-indigo-600'
+          }`}
+        />
+        <CalendarIcon 
+          size={14} 
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors cursor-pointer ${isOpen ? 'text-indigo-600' : 'text-slate-400'}`} 
+        />
       </div>
 
       {isOpen && createPortal(
@@ -129,6 +154,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
           {/* Header Calendário */}
           <div className="bg-slate-900 text-white p-3 flex items-center justify-between">
             <button 
+              type="button"
               onClick={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)); }}
               className="p-1 hover:bg-slate-700 rounded transition-colors"
             >
@@ -138,6 +164,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
               {months[viewDate.getMonth()]} {viewDate.getFullYear()}
             </div>
             <button 
+              type="button"
               onClick={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)); }}
               className="p-1 hover:bg-slate-700 rounded transition-colors"
             >
@@ -157,7 +184,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
             </div>
           </div>
 
-          {/* Seletor de Hora Customizado (Sem Native Select) */}
+          {/* Seletor de Hora */}
           <div className="border-t border-slate-100 p-3 bg-slate-50">
             <div className="flex items-center gap-2 mb-2">
               <Clock size={12} className="text-slate-400" />
@@ -172,6 +199,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
                     {Array.from({length: 24}, (_, i) => (
                       <button 
                         key={i} 
+                        type="button"
                         onClick={() => handleTimeChange('hour', i)}
                         className={`w-full py-1 text-[11px] font-bold transition-colors ${selectedDate?.getHours() === i ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                       >
@@ -191,6 +219,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
                     {Array.from({length: 60}, (_, i) => (
                       <button 
                         key={i} 
+                        type="button"
                         onClick={() => handleTimeChange('minute', i)}
                         className={`w-full py-1 text-[11px] font-bold transition-colors ${selectedDate?.getMinutes() === i ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                       >
@@ -202,6 +231,7 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
               </div>
 
               <button 
+                type="button"
                 onClick={() => setIsOpen(false)}
                 className="bg-indigo-600 text-white p-2 h-10 w-10 flex items-center justify-center rounded shadow-lg hover:bg-indigo-700 transition-all self-end"
               >
@@ -210,7 +240,6 @@ export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({
             </div>
           </div>
           
-          {/* Overlay invisível para fechar ao clicar fora */}
           <div className="fixed inset-0 z-[-1]" onClick={() => setIsOpen(false)}></div>
         </div>,
         document.body

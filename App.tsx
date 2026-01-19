@@ -25,6 +25,14 @@ function App() {
   
   const getCurrentTimestampBR = () => new Date().toLocaleString('pt-BR');
 
+  // Função para calcular o Turno dinamicamente
+  const getTurnoAtual = () => {
+    const hora = new Date().getHours();
+    if (hora >= 6 && hora < 14) return '1º TURNO';
+    if (hora >= 14 && hora < 22) return '2º TURNO';
+    return '3º TURNO';
+  };
+
   const fetchNextId = useCallback(async () => {
       const year = new Date().getFullYear().toString().slice(-2); 
       const prefix = `MAO-${year}`;
@@ -164,12 +172,20 @@ function App() {
               onSave={async (d) => {
                 setLoadingMsg("Registrando...");
                 const id = await fetchNextId();
+                const turno = getTurnoAtual(); // Calcula o turno aqui
                 const { error } = await supabase.from('SMO_Sistema').insert({
-                  ID_Manifesto: id, Usuario_Sistema: currentUser?.Usuario, CIA: d.cia, Manifesto_Puxado: d.dataHoraPuxado, Manifesto_Recebido: d.dataHoraRecebido,
-                  Status: "Manifesto Recebido", Turno: "Automático", "Carimbo_Data/HR": getCurrentTimestampBR(), "Usuario_Ação": currentUser?.Nome_Completo
+                  ID_Manifesto: id, 
+                  Usuario_Sistema: currentUser?.Usuario, 
+                  CIA: d.cia, 
+                  Manifesto_Puxado: d.dataHoraPuxado, 
+                  Manifesto_Recebido: d.dataHoraRecebido,
+                  Status: "Manifesto Recebido", 
+                  Turno: turno, 
+                  "Carimbo_Data/HR": getCurrentTimestampBR(), 
+                  "Usuario_Ação": currentUser?.Nome_Completo
                 });
                 if (error) showAlert('error', error.message);
-                else { showAlert('success', "Registro Concluído"); fetchManifestos(); }
+                else { showAlert('success', `Registro Concluído (${turno})`); fetchManifestos(); }
                 setLoadingMsg(null);
               }}
               onAction={(act, id) => {
