@@ -1,9 +1,10 @@
 
-import React, { useEffect, useState } from 'react';
-import { Manifesto } from '../types';
+import React, { useEffect, useState, useRef } from 'react';
+import { Manifesto, Funcionario } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Search, UserCheck, Loader2, X } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 interface EditModalProps {
   data: Manifesto;
@@ -12,9 +13,7 @@ interface EditModalProps {
 }
 
 export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) => {
-  const [formData, setFormData] = React.useState({
-    ...data
-  });
+  const [formData, setFormData] = React.useState({ ...data });
   const [justificativa, setJustificativa] = React.useState('');
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
@@ -60,46 +59,158 @@ export const AssignResponsibilityModal: React.FC<{
   onConfirm: (name: string) => void, 
   onClose: () => void 
 }> = ({ manifestoId, onConfirm, onClose }) => {
-  const [name, setName] = useState('');
-  const [error, setError] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Funcionario | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchFuncionarios = async () => {
+      if (searchTerm.length < 2 || selected) {
+        setFuncionarios([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('Funcionarios_WFS')
+          .select('*')
+          .ilike('Nome', `%${searchTerm}%`)
+          .eq('Ativo', true)
+          .limit(5);
+        
+        if (!error && data) {
+          setFuncionarios(data);
+        }
+      } catch (err) {
+        console.error("Erro na busca:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const delay = setTimeout(fetchFuncionarios, 300);
+    return () => clearTimeout(delay);
+  }, [searchTerm, selected]);
 
   const handleConfirm = () => {
-    if (!name.trim()) {
-      setError(true);
-      return;
-    }
-    onConfirm(name.trim());
+    if (!selected) return;
+    onConfirm(selected.Nome);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white w-full max-w-sm border-2 border-slate-800 shadow-2xl flex flex-col">
-        <div className="bg-slate-900 text-white p-4 flex items-center gap-3">
-          <UserPlus size={18} className="text-indigo-400" />
-          <h3 className="text-[11px] font-black uppercase tracking-widest">Atribuir Responsável</h3>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Alvo</label>
-            <div className="h-10 px-3 bg-slate-50 border border-slate-200 flex items-center text-xs font-bold text-slate-400 font-mono-tech">{manifestoId}</div>
+    <div className="fixed inset-0 bg-slate-900/80 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+      <div className="bg-white w-full max-w-md border-2 border-slate-900 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.45)] flex flex-col overflow-hidden">
+        <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-2 bg-indigo-600">
+               <UserPlus size={20} className="text-white" />
+            </div>
+            <h3 className="text-[12px] font-black uppercase tracking-[0.2em]">Atribuir Responsável</h3>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Nome do Responsável</label>
-            <input 
-              autoFocus
-              type="text" 
-              value={name}
-              onChange={(e) => { setName(e.target.value); setError(false); }}
-              onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
-              placeholder="DIGITE O NOME COMPLETO"
-              className={`w-full h-10 px-3 bg-white border-2 text-xs font-bold uppercase tracking-tight outline-none transition-all ${error ? 'border-red-500 bg-red-50' : 'border-slate-200 focus:border-indigo-600'}`}
-            />
-            {error && <p className="text-[9px] font-bold text-red-600 uppercase">Campo Obrigatório</p>}
-          </div>
+          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors">
+            <X size={20} />
+          </button>
         </div>
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex gap-3">
-          <button onClick={onClose} className="flex-1 h-10 border-2 border-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-colors">Cancelar</button>
-          <button onClick={handleConfirm} className="flex-1 h-10 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100">Atribuir Puxe</button>
+
+        <div className="p-8 space-y-6">
+          <div className="space-y-2">
+            <div className="flex justify-between items-end">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Localizar Colaborador</label>
+              <span className="text-[9px] font-bold text-slate-400 uppercase font-mono">{manifestoId}</span>
+            </div>
+            
+            <div className="relative" ref={dropdownRef}>
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                <Search size={16} />
+              </div>
+              
+              <input 
+                autoFocus
+                type="text" 
+                value={selected ? selected.Nome : searchTerm}
+                onChange={(e) => { 
+                  setSearchTerm(e.target.value); 
+                  if (selected) setSelected(null);
+                }}
+                placeholder="DIGITE O NOME..."
+                className={`w-full h-14 pl-12 pr-4 bg-slate-50 border-2 text-[11px] font-black uppercase tracking-tight outline-none transition-all ${
+                  selected 
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
+                    : 'border-slate-200 focus:border-indigo-600 focus:bg-white'
+                }`}
+              />
+              
+              {loading && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-600">
+                  <Loader2 size={18} className="animate-spin" />
+                </div>
+              )}
+
+              {/* Lista de Sugestões */}
+              {searchTerm.length >= 2 && !selected && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-slate-900 shadow-2xl z-[10001] animate-fadeIn">
+                  {funcionarios.length > 0 ? (
+                    funcionarios.map(f => (
+                      <button 
+                        key={f.id}
+                        onClick={() => {
+                          setSelected(f);
+                          setSearchTerm(f.Nome);
+                        }}
+                        className="w-full p-4 text-left hover:bg-indigo-50 flex items-center justify-between group transition-colors border-b border-slate-100 last:border-0"
+                      >
+                        <div>
+                          <p className="text-[11px] font-black text-slate-800 uppercase tracking-tight group-hover:text-indigo-700">{f.Nome}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">{f.Cargo || 'OPERACIONAL'}</p>
+                        </div>
+                        <UserCheck size={16} className="text-slate-200 group-hover:text-indigo-400" />
+                      </button>
+                    ))
+                  ) : (
+                    !loading && (
+                      <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase italic">
+                        Nenhum funcionário encontrado
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {selected && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 flex items-center gap-4 animate-fadeIn">
+               <div className="p-2 bg-emerald-600 rounded-full text-white">
+                  <UserCheck size={16} />
+               </div>
+               <div>
+                  <p className="text-[9px] font-black text-emerald-600 uppercase">Confirmado para Atribuição</p>
+                  <p className="text-[12px] font-black text-emerald-900 uppercase">{selected.Nome}</p>
+               </div>
+            </div>
+          )}
+        </div>
+
+        <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4">
+          <button 
+            onClick={onClose} 
+            className="flex-1 h-12 border-2 border-slate-300 text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all text-slate-500"
+          >
+            Voltar
+          </button>
+          <button 
+            onClick={handleConfirm} 
+            disabled={!selected}
+            className={`flex-1 h-12 text-[11px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 ${
+              selected 
+                ? 'bg-indigo-600 text-white hover:bg-slate-900 shadow-indigo-200' 
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed border-none'
+            }`}
+          >
+            Confirmar Atribuição
+          </button>
         </div>
       </div>
     </div>

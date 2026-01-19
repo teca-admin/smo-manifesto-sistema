@@ -10,13 +10,20 @@ export interface Manifesto {
   carimboDataHR?: string;
   usuarioOperacao?: string;
   usuarioAcao?: string;
-  usuarioResponsavel?: string; // Novo campo para o responsável atribuído
+  usuarioResponsavel?: string; 
   
   dataHoraIniciado?: string;
   dataHoraDisponivel?: string;
   dataHoraConferencia?: string;
   dataHoraPendente?: string;
   dataHoraCompleto?: string;
+}
+
+export interface Funcionario {
+  id: number;
+  Nome: string;
+  Cargo?: string;
+  Ativo: boolean;
 }
 
 export interface OperationalLog {
@@ -56,7 +63,6 @@ export interface SMO_Sistema_DB {
   Manifesto_Completo?: string;
 }
 
-// Added PerformanceLogDB interface for performance monitoring metrics
 export interface PerformanceLogDB {
   data: string;
   total_requisicoes: number;
