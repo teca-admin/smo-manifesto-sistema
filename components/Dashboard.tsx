@@ -123,8 +123,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-100/50 border-b border-slate-200">
-                {['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Ação'].map(h => (
-                  <th key={h} className="text-left py-3 px-5 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                {['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Ação'].map((h, idx, arr) => (
+                  <th key={h} className={`${idx === arr.length - 1 ? 'text-right' : 'text-left'} py-3 px-5 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -188,19 +188,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {menuOpenId && createPortal(
          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpenId(null)}>
             <div 
-               className="absolute bg-white border-2 border-slate-800 shadow-2xl min-w-[200px] py-1.5 animate-fadeIn"
-               style={{ top: menuPos.top + 4, left: menuPos.left - 180 }}
+               className="absolute bg-white border-2 border-slate-800 shadow-2xl min-w-[220px] py-1.5 animate-fadeIn"
+               style={{ top: menuPos.top + 4, left: menuPos.left - 200 }}
                onClick={e => e.stopPropagation()}
             >
               <div className="px-4 py-1 border-b border-slate-100 mb-1">
                  <p className="text-[8px] font-black text-slate-400 uppercase">Ações Rápidas</p>
               </div>
-              <button onClick={() => { openHistory(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest"><Search size={14} className="text-slate-400"/> Detalhes Log</button>
-              <button onClick={() => { onAction('entregar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest"><CheckSquare size={14} className="text-emerald-400"/> Concluir Auditoria</button>
-              <button onClick={() => { onAction('anular', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-widest"><Undo2 size={14} className="text-amber-400"/> Reverter Status</button>
-              <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest"><Edit3 size={14} className="text-blue-400"/> Editar / Monitoramento</button>
+              <button onClick={() => { openHistory(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Search size={14} className="text-slate-400"/> Detalhes / Log</button>
+              <button onClick={() => { onAction('entregar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest transition-colors"><CheckSquare size={14} className="text-emerald-400"/> Concluir Auditoria</button>
+              <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Edit3 size={14} className="text-blue-400"/> Editar</button>
               <div className="h-[1px] bg-slate-100 my-1" />
-              <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest"><XCircle size={14} className="text-red-400"/> Cancelar Item</button>
+              <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest transition-colors"><XCircle size={14} className="text-red-400"/> Cancelar Item</button>
             </div>
          </div>, document.body
       )}

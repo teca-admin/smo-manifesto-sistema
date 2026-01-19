@@ -3,7 +3,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Manifesto, Funcionario } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database, ClipboardEdit, CheckCircle2 } from 'lucide-react';
+// Added 'Plane' to the lucide-react import list
+import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database, ClipboardEdit, CheckCircle2, User as UserIcon, MapPin, Activity, Plane } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface EditModalProps {
@@ -310,76 +311,115 @@ export const LoadingOverlay: React.FC<{ msg: string }> = ({ msg }) => (
 
 export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = ({ data, onClose }) => {
   const formatTime = (iso: string | undefined) => {
-    if (!iso || iso === '---') return 'Pendente';
+    if (!iso || iso === '---' || iso === '') return 'Pendente';
     try {
       const d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
       return d.toLocaleString('pt-BR');
     } catch { return iso; }
   };
 
+  const timelineSteps = [
+    { label: 'Manifesto Puxado', time: data.dataHoraPuxado, icon: Database, color: 'text-slate-400' },
+    { label: 'Manifesto Recebido', time: data.dataHoraRecebido, icon: MapPin, color: 'text-blue-500' },
+    { label: 'Início da Operação', time: data.dataHoraIniciado, icon: Activity, color: 'text-amber-500' },
+    { label: 'Operação Finalizada', time: data.dataHoraCompleto, icon: CheckCircle2, color: 'text-emerald-500' },
+    { label: 'Assinatura Representante', time: data.dataHoraRepresentanteCIA, icon: Clock, color: 'text-indigo-500' },
+    { label: 'Manifesto Entregue', time: data.dataHoraEntregue, icon: Plane, color: 'text-slate-800' }
+  ];
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-      <div className="bg-white w-full max-w-2xl border-2 border-slate-900 shadow-2xl flex flex-col">
-        <div className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase tracking-widest flex justify-between items-center">
-          <div className="flex items-center gap-3">
-             <Calendar size={16} className="text-indigo-400" />
-             <span>REGISTRO CRONOLÓGICO: {data.id}</span>
+      <div className="bg-white w-full max-w-3xl border-2 border-slate-900 shadow-2xl flex flex-col max-h-[90vh]">
+        {/* HEADER TÉCNICO */}
+        <div className="bg-[#0f172a] text-white p-5 flex items-center justify-between border-b-2 border-slate-800">
+          <div className="flex items-center gap-4">
+             <div className="p-2 bg-indigo-600">
+                <Search size={20} className="text-white" />
+             </div>
+             <div>
+                <h3 className="text-[12px] font-black uppercase tracking-[0.2em]">Rastreabilidade de Manifesto</h3>
+                <p className="text-[10px] font-bold text-slate-400 font-mono">{data.id}</p>
+             </div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={18} /></button>
+          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={20} /></button>
         </div>
         
-        <div className="p-6 grid grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h5 className="text-[10px] font-black text-slate-400 uppercase border-b-2 border-slate-50 pb-2 flex items-center gap-2">
-               <Database size={14} /> Metadados de Origem
-            </h5>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs border-b border-slate-100 pb-1">
-                <span className="font-bold text-slate-500">Status Atual:</span>
-                <span className="font-black text-indigo-600 uppercase">{data.status}</span>
-              </div>
-              <div className="flex justify-between text-xs border-b border-slate-100 pb-1">
-                <span className="font-bold text-slate-500">Companhia:</span>
-                <span className="font-black text-slate-900 uppercase">{data.cia}</span>
-              </div>
-              <div className="flex justify-between text-xs border-b border-slate-100 pb-1">
-                <span className="font-bold text-slate-500">Operador:</span>
-                <span className="font-black text-slate-900 uppercase">{data.usuario}</span>
-              </div>
-            </div>
+        <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
+          
+          {/* PAINEL DE METADADOS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Companhia Aérea</p>
+                <p className="text-sm font-black text-slate-800 uppercase tracking-tighter">{data.cia}</p>
+             </div>
+             <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Turno Operacional</p>
+                <p className="text-sm font-black text-slate-800 uppercase tracking-tighter">{data.turno}</p>
+             </div>
+             <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
+                <p className="text-[9px] font-black text-indigo-400 uppercase mb-2">Status do Fluxo</p>
+                <span className="text-[10px] font-black text-indigo-700 uppercase">{data.status}</span>
+             </div>
           </div>
 
+          {/* RESPONSÁVEIS */}
           <div className="space-y-4">
-            <h5 className="text-[10px] font-black text-slate-400 uppercase border-b-2 border-slate-50 pb-2 flex items-center gap-2">
-               <Clock size={14} /> Linha do Tempo Operacional
-            </h5>
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] border-b border-slate-100 pb-1">
-                <span className="font-bold text-slate-500 uppercase">1. Puxado:</span>
-                <span className="font-black text-slate-700 font-mono">{formatTime(data.dataHoraPuxado)}</span>
-              </div>
-              <div className="flex justify-between text-[10px] border-b border-slate-100 pb-1">
-                <span className="font-bold text-slate-500 uppercase">2. Recebido:</span>
-                <span className="font-black text-slate-700 font-mono">{formatTime(data.dataHoraRecebido)}</span>
-              </div>
-              <div className="flex justify-between text-[10px] border-b border-slate-100 pb-1">
-                <span className="font-bold text-indigo-600 uppercase">3. Repr. CIA:</span>
-                <span className="font-black text-indigo-700 font-mono">{formatTime(data.dataHoraRepresentanteCIA)}</span>
-              </div>
-              <div className="flex justify-between text-[10px] border-b border-slate-100 pb-1">
-                <span className="font-bold text-emerald-600 uppercase">4. Entregue:</span>
-                <span className="font-black text-emerald-700 font-mono">{formatTime(data.dataHoraEntregue)}</span>
-              </div>
-              <div className="flex justify-between text-[10px] pt-1">
-                <span className="font-bold text-slate-400 uppercase">Última Modif:</span>
-                <span className="font-black text-slate-400 font-mono">{data.carimboDataHR || '---'}</span>
-              </div>
-            </div>
+             <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
+                <UserIcon size={14} /> Equipe Responsável
+             </h4>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-md">
+                   <div className="w-8 h-8 bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 rounded-full">OP</div>
+                   <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Responsável pela Carga</p>
+                      <p className="text-[11px] font-bold text-slate-800 uppercase">{data.usuarioResponsavel || 'Não Atribuído'}</p>
+                   </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-md">
+                   <div className="w-8 h-8 bg-indigo-100 flex items-center justify-center text-[10px] font-black text-indigo-600 rounded-full">SM</div>
+                   <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Criado por (Sistema)</p>
+                      <p className="text-[11px] font-bold text-slate-800 uppercase">{data.usuario}</p>
+                   </div>
+                </div>
+             </div>
           </div>
+
+          {/* LINHA DO TEMPO GRÁFICA */}
+          <div className="space-y-6">
+             <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
+                <Clock size={14} /> Histórico de Eventos
+             </h4>
+             
+             <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
+                {timelineSteps.map((step, idx) => {
+                  const hasDate = step.time && step.time !== '---' && step.time !== '';
+                  return (
+                    <div key={idx} className="relative">
+                      <div className={`absolute -left-[30px] top-0 p-1 rounded-full border-2 bg-white z-10 ${hasDate ? 'border-indigo-600 text-indigo-600' : 'border-slate-100 text-slate-300'}`}>
+                        <step.icon size={12} />
+                      </div>
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4">
+                        <div className="flex flex-col">
+                           <span className={`text-[11px] font-black uppercase tracking-tight ${hasDate ? 'text-slate-800' : 'text-slate-300'}`}>{step.label}</span>
+                           {!hasDate && <span className="text-[8px] font-bold text-slate-300 uppercase italic">Aguardando execução...</span>}
+                        </div>
+                        <div className={`text-[10px] font-bold font-mono px-3 py-1 rounded ${hasDate ? 'bg-slate-50 text-slate-600' : 'text-transparent select-none'}`}>
+                           {formatTime(step.time)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+             </div>
+          </div>
+
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-slate-50">
-          <button onClick={onClose} className="w-full h-11 bg-white border-2 border-slate-200 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all">Fechar Auditoria de Log</button>
+        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+          <p className="text-[9px] font-bold text-slate-400 uppercase">Última Auditoria: <span className="font-black text-slate-600">{data.carimboDataHR || '---'}</span></p>
+          <button onClick={onClose} className="h-10 px-8 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-md">Concluir Leitura</button>
         </div>
       </div>
     </div>
