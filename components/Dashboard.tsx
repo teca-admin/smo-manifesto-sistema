@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Manifesto, User } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-import { Search, History, Edit3, XCircle, Undo2, CheckSquare, Plus, Database, Filter, Clock } from 'lucide-react';
+import { Search, History, Edit3, XCircle, Undo2, CheckSquare, Plus, Database, Filter, Clock, Edit } from 'lucide-react';
 
 interface DashboardProps {
   currentUser: User;
@@ -13,12 +13,13 @@ interface DashboardProps {
   onAction: (action: string, id: string) => void;
   openHistory: (id: string) => void;
   openEdit: (id: string) => void;
+  onOpenReprFill: (id: string) => void;
   onShowAlert: (type: 'success' | 'error', msg: string) => void;
   nextId: string;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
-  manifestos, onSave, onAction, openHistory, openEdit, onShowAlert
+  manifestos, onSave, onAction, openHistory, openEdit, onOpenReprFill, onShowAlert
 }) => {
   const [formData, setFormData] = useState({ 
     cia: '', 
@@ -128,42 +129,54 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {manifestos.map(m => (
-                <tr key={m.id} className="group hover:bg-indigo-50/40 transition-colors">
-                  <td className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap">{m.id}</td>
-                  <td className="py-3 px-5">
-                    <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight whitespace-nowrap ${getStatusClass(m.status)}`}>
-                      {m.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter whitespace-nowrap">{m.cia}</td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
-                    {formatDisplayDate(m.dataHoraPuxado)}
-                  </td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
-                    {formatDisplayDate(m.dataHoraRecebido)}
-                  </td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-indigo-500 font-mono-tech tracking-tight whitespace-nowrap">
-                    {formatDisplayDate(m.dataHoraRepresentanteCIA)}
-                  </td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-emerald-600 font-mono-tech tracking-tight whitespace-nowrap">
-                    {formatDisplayDate(m.dataHoraEntregue)}
-                  </td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">{m.turno}</td>
-                  <td className="py-3 px-5 text-right">
-                    <button 
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setMenuPos({ top: rect.bottom + window.scrollY, left: rect.left });
-                        setMenuOpenId(m.id);
-                      }} 
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-all border border-transparent hover:border-indigo-200"
+              {manifestos.map(m => {
+                const canFillRepr = m.status === 'Manifesto Finalizado';
+                
+                return (
+                  <tr key={m.id} className="group hover:bg-indigo-50/40 transition-colors">
+                    <td className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap">{m.id}</td>
+                    <td className="py-3 px-5">
+                      <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight whitespace-nowrap ${getStatusClass(m.status)}`}>
+                        {m.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter whitespace-nowrap">{m.cia}</td>
+                    <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
+                      {formatDisplayDate(m.dataHoraPuxado)}
+                    </td>
+                    <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
+                      {formatDisplayDate(m.dataHoraRecebido)}
+                    </td>
+                    <td 
+                      onClick={() => m.status === 'Manifesto Finalizado' && onOpenReprFill(m.id)}
+                      className={`py-3 px-5 text-[10px] font-bold font-mono-tech tracking-tight whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                        canFillRepr 
+                          ? 'text-indigo-600 cursor-pointer hover:bg-indigo-100/60 bg-indigo-50/30 font-black' 
+                          : 'text-indigo-500'
+                      }`}
                     >
-                      <History size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      {formatDisplayDate(m.dataHoraRepresentanteCIA)}
+                      {canFillRepr && (!m.dataHoraRepresentanteCIA || m.dataHoraRepresentanteCIA === '---') && <Edit size={10} className="text-indigo-400 animate-pulse" />}
+                    </td>
+                    <td className="py-3 px-5 text-[10px] font-bold text-emerald-600 font-mono-tech tracking-tight whitespace-nowrap">
+                      {formatDisplayDate(m.dataHoraEntregue)}
+                    </td>
+                    <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">{m.turno}</td>
+                    <td className="py-3 px-5 text-right">
+                      <button 
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setMenuPos({ top: rect.bottom + window.scrollY, left: rect.left });
+                          setMenuOpenId(m.id);
+                        }} 
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-all border border-transparent hover:border-indigo-200"
+                      >
+                        <History size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

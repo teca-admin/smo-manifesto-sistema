@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { OperationalDashboard } from './components/OperationalDashboard';
-import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal, AssignResponsibilityModal } from './components/Modals';
+import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal, AssignResponsibilityModal, ReprFillModal } from './components/Modals';
 import { Manifesto, User, SMO_Sistema_DB } from './types';
 import { supabase } from './supabaseClient';
 import { LayoutGrid, Plane, LogOut, Terminal, Activity } from 'lucide-react';
@@ -17,6 +17,7 @@ function App() {
   const [nextId, setNextId] = useState<string>('Automático');
   
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [fillingReprId, setFillingReprId] = useState<string | null>(null);
   const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
   const [cancellationId, setCancellationId] = useState<string | null>(null);
   const [anularId, setAnularId] = useState<string | null>(null);
@@ -144,6 +145,35 @@ function App() {
     }
   };
 
+  const handleSaveReprDate = async (id: string, date: string) => {
+    setLoadingMsg("Atualizando Representante...");
+    try {
+      const user = currentUser?.Nome_Completo || "Sistema";
+      const { error } = await supabase.from('SMO_Sistema').update({
+        Representante_CIA: date,
+        "Carimbo_Data/HR": getCurrentTimestampBR(),
+        "Usuario_Ação": user
+      }).eq('ID_Manifesto', id);
+
+      if (error) throw error;
+
+      await supabase.from('SMO_Operacional').insert({ 
+        ID_Manifesto: id, 
+        "Ação": "Registro Representante CIA", 
+        Usuario: user, 
+        "Created_At_BR": getCurrentTimestampBR() 
+      });
+
+      showAlert('success', 'Data do Representante Salva');
+      setFillingReprId(null);
+      fetchManifestos();
+    } catch (err: any) {
+      showAlert('error', err.message);
+    } finally {
+      setLoadingMsg(null);
+    }
+  };
+
   if (!isLoggedIn) return <LoginScreen onLoginSuccess={(u) => { setCurrentUser(u); setIsLoggedIn(true); }} loading={false} setLoading={() => {}} />;
 
   return (
@@ -231,6 +261,7 @@ function App() {
               }}
               openHistory={setViewingHistoryId}
               openEdit={setEditingId}
+              onOpenReprFill={setFillingReprId}
               onShowAlert={showAlert}
               nextId={nextId}
             />
@@ -252,6 +283,13 @@ function App() {
           data={manifestos.find(m => m.id === editingId)!} 
           onClose={() => setEditingId(null)} 
           onSave={handleSaveEdit} 
+        />
+      )}
+      {fillingReprId && (
+        <ReprFillModal
+          manifesto={manifestos.find(m => m.id === fillingReprId)!}
+          onClose={() => setFillingReprId(null)}
+          onConfirm={(date) => handleSaveReprDate(fillingReprId, date)}
         />
       )}
       {viewingHistoryId && <HistoryModal data={manifestos.find(m => m.id === viewingHistoryId)!} onClose={() => setViewingHistoryId(null)} />}
