@@ -247,7 +247,7 @@ export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ mani
 
                       {m.status === 'Manifesto Finalizado' && (
                         <div className="flex-1 md:flex-none h-14 px-8 bg-slate-100 border-2 border-slate-200 text-slate-400 text-[10px] font-black uppercase tracking-[0.1em] flex items-center justify-center gap-3">
-                          <Clock size={18} /> Auditoria Pendente
+                          <Clock size={18} /> PENDENTE CIA
                         </div>
                       )}
                    </div>
