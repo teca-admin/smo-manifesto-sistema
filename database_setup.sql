@@ -1,20 +1,9 @@
 
 -- =============================================================================
--- SISTEMA DE MANIFESTO OPERACIONAL (SMO) - VERSÃO 2.5 (WFS & CIA)
+-- SISTEMA DE MANIFESTO OPERACIONAL (SMO) - SCRIPT DE ATUALIZAÇÃO V2.5
 -- =============================================================================
 
--- 1. TABELA DE USUÁRIOS E PERFIS
-CREATE TABLE IF NOT EXISTS public."Cadastro_de_Perfil" (
-    id bigint primary key generated always as identity,
-    "Usuario" text unique not null,
-    "Senha" text not null,
-    "Nome_Completo" text,
-    "sesson_id" text,
-    "Session_Data/HR" text,
-    created_at timestamptz default now()
-);
-
--- 2. TABELA PRINCIPAL DE MANIFESTOS
+-- 1. GARANTE A ESTRUTURA DA TABELA PRINCIPAL
 CREATE TABLE IF NOT EXISTS public."SMO_Sistema" (
     id bigint primary key generated always as identity,
     "ID_Manifesto" text unique not null,
@@ -22,38 +11,39 @@ CREATE TABLE IF NOT EXISTS public."SMO_Sistema" (
     "CIA" text not null,
     "Manifesto_Puxado" text,
     "Manifesto_Recebido" text,
-    "Representante_CIA" text, 
-    "Manifesto_Entregue" text,  
-    "Cargas_(IN/H)" integer default 0,
-    "Cargas_(IZ)" integer default 0,
     "Status" text default 'Manifesto Recebido',
     "Turno" text,
     "Carimbo_Data/HR" text,
     "Usuario_Ação" text,
-    "Usuario_Operação" text,
-    "Manifesto_Iniciado" text,
-    "Manifesto_Disponivel" text,
-    "Manifesto_em_Conferência" text,
-    "Manifesto_Pendente" text,
-    "Manifesto_Completo" text,
-    created_at timestamptz default now(),
-    constraint cia_valida check ("CIA" in ('Azul', 'Gol', 'Latam', 'Modern', 'Total'))
-);
-
--- 3. TABELA DE REGISTROS OPERACIONAIS (Log de Eventos)
-CREATE TABLE IF NOT EXISTS public."SMO_Operacional" (
-    id bigint primary key generated always as identity,
-    "ID_Manifesto" text references public."SMO_Sistema"("ID_Manifesto") on delete cascade,
-    "Ação" text not null,
-    "Usuario" text not null,
-    "Cargas_(IN/H)" integer,
-    "Cargas_(IZ)" integer,
-    "Justificativa" text,
-    "Created_At_BR" text,
     created_at timestamptz default now()
 );
 
--- 4. TABELA DE FUNCIONÁRIOS (RELAÇÃO WFS)
+-- 2. ADIÇÃO DE COLUNAS FALTANTES (CASO A TABELA JÁ EXISTA)
+-- O comando 'DO $$' evita erros se as colunas já existirem
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='SMO_Sistema' AND column_name='Representante_CIA') THEN
+        ALTER TABLE public."SMO_Sistema" ADD COLUMN "Representante_CIA" text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='SMO_Sistema' AND column_name='Manifesto_Entregue') THEN
+        ALTER TABLE public."SMO_Sistema" ADD COLUMN "Manifesto_Entregue" text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='SMO_Sistema' AND column_name='Usuario_Operação') THEN
+        ALTER TABLE public."SMO_Sistema" ADD COLUMN "Usuario_Operação" text;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='SMO_Sistema' AND column_name='Manifesto_Iniciado') THEN
+        ALTER TABLE public."SMO_Sistema" ADD COLUMN "Manifesto_Iniciado" text;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='SMO_Sistema' AND column_name='Manifesto_Completo') THEN
+        ALTER TABLE public."SMO_Sistema" ADD COLUMN "Manifesto_Completo" text;
+    END IF;
+END $$;
+
+-- 3. TABELA DE FUNCIONÁRIOS (RELAÇÃO WFS)
 CREATE TABLE IF NOT EXISTS public."Funcionarios_WFS" (
     id bigint primary key generated always as identity,
     "Nome" text not null,
@@ -62,24 +52,7 @@ CREATE TABLE IF NOT EXISTS public."Funcionarios_WFS" (
     created_at timestamptz default now()
 );
 
--- 5. TABELA DE MÉTRICAS (Performance Monitor)
-CREATE TABLE IF NOT EXISTS public."Log_Performance_SMO_Sistema" (
-    data date primary key,
-    total_requisicoes bigint default 0,
-    total_n8n bigint default 0,
-    banda_mb numeric default 0,
-    usuarios_unicos jsonb default '[]',
-    ultima_atualizacao timestamptz,
-    total_cadastro integer default 0,
-    total_edicao integer default 0,
-    total_cancelamento integer default 0,
-    total_anulacao integer default 0,
-    total_login integer default 0,
-    total_logoff integer default 0,
-    detalhes_hora jsonb default '{}'
-);
-
--- 6. LIMPEZA E INSERÇÃO DE FUNCIONÁRIOS
+-- 4. LIMPEZA E INSERÇÃO MASSIVA DE FUNCIONÁRIOS (CONFORME LISTA FORNECIDA)
 TRUNCATE TABLE public."Funcionarios_WFS";
 
 INSERT INTO public."Funcionarios_WFS" ("Nome", "Cargo") VALUES
@@ -234,11 +207,29 @@ INSERT INTO public."Funcionarios_WFS" ("Nome", "Cargo") VALUES
 ('CLEITON ELIAS DE FREITAS SILVA', 'AUX'),
 ('PAULO SILVANO MENDONÇA MARINHO', 'AUX');
 
--- 7. DADOS INICIAIS DE ADMIN
-INSERT INTO public."Cadastro_de_Perfil" ("Usuario", "Senha", "Nome_Completo") 
-VALUES ('Rafael Rodrigues', '123456', 'Rafael Rodrigues')
-ON CONFLICT ("Usuario") DO UPDATE SET "Senha" = EXCLUDED."Senha";
+-- 5. FUNÇÃO PARA REGISTRO DE MÉTRICAS (GARANTE QUE O CACHE SEJA ATUALIZADO)
+CREATE OR REPLACE FUNCTION public.registrar_metricas(
+    p_reqs int, p_n8n int, p_banda numeric, p_usuario text, p_hora text, p_timestamp_iso timestamptz,
+    p_cadastro int default 0, p_edicao int default 0, p_cancelamento int default 0, p_anulacao int default 0,
+    p_login int default 0, p_logoff int default 0,
+    p_data_local date default null
+) returns void as $$
+begin
+    insert into public."Log_Performance_SMO_Sistema" (data)
+    values (coalesce(p_data_local, current_date)) on conflict (data) do nothing;
 
--- POLICIES
-ALTER TABLE public."SMO_Operacional" ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all for now" ON public."SMO_Operacional" FOR ALL USING (true) WITH CHECK (true);
+    update public."Log_Performance_SMO_Sistema"
+    set 
+      total_requisicoes = total_requisicoes + p_reqs,
+      total_n8n = total_n8n + p_n8n,
+      banda_mb = banda_mb + p_banda,
+      ultima_atualizacao = p_timestamp_iso,
+      total_cadastro = total_cadastro + p_cadastro,
+      total_edicao = total_edicao + p_edicao,
+      total_cancelamento = total_cancelamento + p_cancelamento,
+      total_anulacao = total_anulacao + p_anulacao,
+      total_login = total_login + p_login,
+      total_logoff = total_logoff + p_logoff
+    where data = coalesce(p_data_local, current_date);
+end;
+$$ language plpgsql;

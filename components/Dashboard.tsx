@@ -123,7 +123,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-100/50 border-b border-slate-200">
-                {['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Auditoria'].map(h => (
+                {['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Ação'].map(h => (
                   <th key={h} className="text-left py-3 px-5 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -131,7 +131,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <tbody className="divide-y divide-slate-100">
               {manifestos.map(m => {
                 const canFillRepr = m.status === 'Manifesto Finalizado';
-                
+                const hasReprDate = m.dataHoraRepresentanteCIA && m.dataHoraRepresentanteCIA !== '---' && m.dataHoraRepresentanteCIA !== '';
+
                 return (
                   <tr key={m.id} className="group hover:bg-indigo-50/40 transition-colors">
                     <td className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap">{m.id}</td>
@@ -148,15 +149,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {formatDisplayDate(m.dataHoraRecebido)}
                     </td>
                     <td 
-                      onClick={() => m.status === 'Manifesto Finalizado' && onOpenReprFill(m.id)}
-                      className={`py-3 px-5 text-[10px] font-bold font-mono-tech tracking-tight whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                        canFillRepr 
-                          ? 'text-indigo-600 cursor-pointer hover:bg-indigo-100/60 bg-indigo-50/30 font-black' 
-                          : 'text-indigo-500'
-                      }`}
+                      onClick={() => canFillRepr && onOpenReprFill(m.id)}
+                      className={`py-3 px-5 transition-all ${canFillRepr ? 'cursor-pointer hover:bg-indigo-100/60' : ''}`}
                     >
-                      {formatDisplayDate(m.dataHoraRepresentanteCIA)}
-                      {canFillRepr && (!m.dataHoraRepresentanteCIA || m.dataHoraRepresentanteCIA === '---') && <Edit size={10} className="text-indigo-400 animate-pulse" />}
+                      <div className={`flex items-center gap-1.5 text-[10px] font-mono-tech tracking-tight whitespace-nowrap ${
+                        canFillRepr 
+                          ? 'text-indigo-600 font-black' 
+                          : 'text-slate-500 font-bold'
+                      }`}>
+                        {formatDisplayDate(m.dataHoraRepresentanteCIA)}
+                        {canFillRepr && !hasReprDate && <Edit size={10} className="text-indigo-400 animate-pulse" />}
+                      </div>
                     </td>
                     <td className="py-3 px-5 text-[10px] font-bold text-emerald-600 font-mono-tech tracking-tight whitespace-nowrap">
                       {formatDisplayDate(m.dataHoraEntregue)}

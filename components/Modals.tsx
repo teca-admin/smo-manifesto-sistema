@@ -108,39 +108,27 @@ export const ReprFillModal: React.FC<{
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
       <div className="bg-white w-full max-w-sm border-2 border-slate-900 shadow-2xl flex flex-col">
-        <div className="bg-[#0f172a] text-white p-4 text-[11px] font-black uppercase tracking-widest flex justify-between items-center">
-          <div className="flex items-center gap-3">
-             <Clock size={16} className="text-indigo-400" />
-             <span>REGISTRO REPRESENTANTE CIA</span>
-          </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={18} /></button>
+        <div className="bg-[#0f172a] text-white p-3 text-[10px] font-black uppercase tracking-widest flex justify-between items-center">
+          <span className="flex items-center gap-2"><Clock size={14} /> REPR. CIA - {manifesto.id}</span>
+          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={16} /></button>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="text-center mb-2">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Manifesto Selecionado</p>
-            <h4 className="text-lg font-black text-slate-900 font-mono-tech tracking-tighter">{manifesto.id}</h4>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">Data e Hora do Representante</label>
+        <div className="p-6 space-y-5">
+          <div className="space-y-2">
+            <label className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Data e Hora da Assinatura</label>
             <CustomDateTimePicker value={date} onChange={setDate} />
           </div>
 
-          <p className="text-[9px] text-slate-400 font-bold uppercase leading-relaxed text-center italic mt-4">
-            Preencha apenas a data e hora em que o representante da CIA assinou o manifesto.
-          </p>
-        </div>
-
-        <div className="p-4 bg-slate-50 border-t-2 border-slate-100 flex gap-3">
-          <button onClick={onClose} className="flex-1 h-10 border-2 border-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all text-slate-500">Voltar</button>
-          <button 
-            disabled={!date}
-            onClick={() => onConfirm(date)} 
-            className={`flex-1 h-10 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 ${date ? 'bg-indigo-600 hover:bg-slate-900' : 'bg-slate-300 cursor-not-allowed border-none shadow-none'}`}
-          >
-            <CheckCircle2 size={16} /> Confirmar Data
-          </button>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 h-10 border-2 border-slate-200 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-50 transition-all">Sair</button>
+            <button 
+              disabled={!date}
+              onClick={() => onConfirm(date)} 
+              className={`flex-1 h-10 text-white text-[10px] font-black uppercase transition-all shadow-md flex items-center justify-center gap-2 ${date ? 'bg-indigo-600 hover:bg-slate-900' : 'bg-slate-200 cursor-not-allowed'}`}
+            >
+              Confirmar
+            </button>
+          </div>
         </div>
       </div>
     </div>
