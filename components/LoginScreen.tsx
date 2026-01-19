@@ -61,6 +61,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, loadin
         "Session_Data/HR": dataHrEnvio
       };
 
+      // Dispara evento de login para métricas
+      window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'login' } }));
+
       onLoginSuccess(authenticatedUser);
 
     } catch (err: any) {

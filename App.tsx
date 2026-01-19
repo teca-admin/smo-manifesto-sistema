@@ -34,6 +34,25 @@ function App() {
     return '3º TURNO';
   };
 
+  const handleLogout = () => {
+    // Dispara evento para o PerformanceMonitor registrar o logoff antes de sair
+    window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'logoff' } }));
+    
+    // Limpa estados de autenticação e UI
+    // Remover o reload evita o erro de "arquivo não encontrado" em ambientes de sandbox/preview
+    setIsLoggedIn(false);
+    setCurrentUser(null);
+    setActiveTab('sistema');
+    setManifestos([]);
+    setEditingId(null);
+    setFillingReprId(null);
+    setViewingHistoryId(null);
+    setCancellationId(null);
+    setAnularId(null);
+    setAssigningId(null);
+    setLoadingMsg(null);
+  };
+
   const fetchNextId = useCallback(async () => {
       const year = new Date().getFullYear().toString().slice(-2); 
       const prefix = `MAO-${year}`;
@@ -222,7 +241,7 @@ function App() {
               <p className="text-[11px] font-bold text-slate-100 uppercase">{currentUser?.Nome_Completo}</p>
             </div>
 
-            <button onClick={() => window.location.reload()} className="p-2.5 bg-slate-800 hover:bg-red-600 transition-colors border border-slate-700 hover:border-red-500 text-slate-400 hover:text-white group">
+            <button onClick={handleLogout} className="p-2.5 bg-slate-800 hover:bg-red-600 transition-colors border border-slate-700 hover:border-red-500 text-slate-400 hover:text-white group">
               <LogOut size={16} className="group-hover:scale-110 transition-transform" />
             </button>
           </div>
@@ -251,13 +270,27 @@ function App() {
                   "Usuario_Ação": currentUser?.Nome_Completo
                 });
                 if (error) showAlert('error', error.message);
-                else { showAlert('success', `Registro Concluído (${turno})`); fetchManifestos(); }
+                else { 
+                  showAlert('success', `Registro Concluído (${turno})`); 
+                  window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'cadastro' } }));
+                  fetchManifestos(); 
+                }
                 setLoadingMsg(null);
               }}
               onAction={(act, id) => {
                 if (act === 'entregar') updateStatus(id, 'Manifesto Entregue');
-                else if (act === 'cancelar') setCancellationId(id);
-                else if (act === 'anular') setAnularId(id);
+                else if (act === 'cancelar') {
+                  setLoadingMsg("Cancelando...");
+                  updateStatus(id, 'Manifesto Cancelado');
+                  window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'cancelar' } }));
+                  setCancellationId(null);
+                }
+                else if (act === 'anular') {
+                  setLoadingMsg("Anulando...");
+                  updateStatus(id, 'Manifesto Recebido');
+                  window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'anulacao' } }));
+                  setAnularId(id);
+                }
               }}
               openHistory={setViewingHistoryId}
               openEdit={setEditingId}
@@ -268,7 +301,12 @@ function App() {
           ) : (
             <OperationalDashboard 
               manifestos={manifestos} 
-              onAction={updateStatus} 
+              onAction={(id, status, fields) => {
+                updateStatus(id, status, fields);
+                if (status === 'Manifesto Iniciado' || status === 'Manifesto Finalizado') {
+                  window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'edicao' } }));
+                }
+              }} 
               currentUser={currentUser!} 
               onOpenAssign={setAssignId => setAssigningId(setAssignId)}
             />
@@ -282,7 +320,10 @@ function App() {
         <EditModal 
           data={manifestos.find(m => m.id === editingId)!} 
           onClose={() => setEditingId(null)} 
-          onSave={handleSaveEdit} 
+          onSave={(data) => {
+            handleSaveEdit(data);
+            window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'edicao' } }));
+          }} 
         />
       )}
       {fillingReprId && (
@@ -293,8 +334,16 @@ function App() {
         />
       )}
       {viewingHistoryId && <HistoryModal data={manifestos.find(m => m.id === viewingHistoryId)!} onClose={() => setViewingHistoryId(null)} />}
-      {cancellationId && <CancellationModal onConfirm={() => updateStatus(cancellationId, 'Manifesto Cancelado')} onClose={() => setCancellationId(null)} />}
-      {anularId && <AnularModal onConfirm={() => updateStatus(anularId, 'Manifesto Recebido')} onClose={() => setAnularId(null)} />}
+      {cancellationId && <CancellationModal onConfirm={() => {
+        updateStatus(cancellationId, 'Manifesto Cancelado');
+        window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'cancelar' } }));
+        setCancellationId(null);
+      }} onClose={() => setCancellationId(null)} />}
+      {anularId && <AnularModal onConfirm={() => {
+        updateStatus(anularId, 'Manifesto Recebido');
+        window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'anulacao' } }));
+        setAnularId(null);
+      }} onClose={() => setAnularId(null)} />}
       {assigningId && (
         <AssignResponsibilityModal 
           manifestoId={assigningId} 
