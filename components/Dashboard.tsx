@@ -29,6 +29,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
 
+  // FILTRO: Apenas manifestos em andamento (Remove Entregues e Cancelados)
+  const manifestosEmAndamento = manifestos.filter(m => 
+    m.status !== 'Manifesto Entregue' && m.status !== 'Manifesto Cancelado'
+  );
+
   const formatDisplayDate = (isoStr: string | undefined) => {
     if (!isoStr || isoStr === '---' || isoStr === '') return '---';
     try {
@@ -113,10 +118,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="h-4 w-[1px] bg-slate-300" />
             <div className="flex items-center gap-1.5">
               <Filter size={12} className="text-slate-400" />
-              <span className="text-[9px] font-bold text-slate-400 uppercase">Filtros: Todos os Registros</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Filtros: Em Andamento</span>
             </div>
           </div>
-          <span className="text-[9px] font-bold text-slate-400 uppercase">Total: {manifestos.length} Itens</span>
+          <span className="text-[9px] font-bold text-slate-400 uppercase">Monitorando: {manifestosEmAndamento.length} Itens</span>
         </div>
         
         <div className="overflow-x-auto">
@@ -129,57 +134,65 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {manifestos.map(m => {
-                const canFillRepr = m.status === 'Manifesto Finalizado';
-                const hasReprDate = m.dataHoraRepresentanteCIA && m.dataHoraRepresentanteCIA !== '---' && m.dataHoraRepresentanteCIA !== '';
+              {manifestosEmAndamento.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-[10px] font-bold text-slate-400 uppercase italic">
+                    Nenhum manifesto em andamento no momento.
+                  </td>
+                </tr>
+              ) : (
+                manifestosEmAndamento.map(m => {
+                  const canFillRepr = m.status === 'Manifesto Finalizado';
+                  const hasReprDate = m.dataHoraRepresentanteCIA && m.dataHoraRepresentanteCIA !== '---' && m.dataHoraRepresentanteCIA !== '';
 
-                return (
-                  <tr key={m.id} className="group hover:bg-indigo-50/40 transition-colors">
-                    <td className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap">{m.id}</td>
-                    <td className="py-3 px-5">
-                      <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight whitespace-nowrap ${getStatusClass(m.status)}`}>
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter whitespace-nowrap">{m.cia}</td>
-                    <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
-                      {formatDisplayDate(m.dataHoraPuxado)}
-                    </td>
-                    <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
-                      {formatDisplayDate(m.dataHoraRecebido)}
-                    </td>
-                    <td 
-                      onClick={() => canFillRepr && onOpenReprFill(m.id)}
-                      className={`py-3 px-5 transition-all ${canFillRepr ? 'cursor-pointer hover:bg-indigo-100/60' : ''}`}
-                    >
-                      <div className={`flex items-center gap-1.5 text-[10px] font-mono-tech tracking-tight whitespace-nowrap ${
-                        canFillRepr 
-                          ? 'text-indigo-600 font-black' 
-                          : 'text-slate-500 font-bold'
-                      }`}>
-                        {formatDisplayDate(m.dataHoraRepresentanteCIA)}
-                        {canFillRepr && !hasReprDate && <Edit size={10} className="text-indigo-400 animate-pulse" />}
-                      </div>
-                    </td>
-                    <td className="py-3 px-5 text-[10px] font-bold text-emerald-600 font-mono-tech tracking-tight whitespace-nowrap">
-                      {formatDisplayDate(m.dataHoraEntregue)}
-                    </td>
-                    <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">{m.turno}</td>
-                    <td className="py-3 px-5 text-right">
-                      <button 
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setMenuPos({ top: rect.bottom + window.scrollY, left: rect.left });
-                          setMenuOpenId(m.id);
-                        }} 
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-all border border-transparent hover:border-indigo-200"
+                  return (
+                    <tr key={m.id} className="group hover:bg-indigo-50/40 transition-colors">
+                      <td className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap">{m.id}</td>
+                      <td className="py-3 px-5">
+                        <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight whitespace-nowrap ${getStatusClass(m.status)}`}>
+                          {m.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter whitespace-nowrap">{m.cia}</td>
+                      <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
+                        {formatDisplayDate(m.dataHoraPuxado)}
+                      </td>
+                      <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
+                        {formatDisplayDate(m.dataHoraRecebido)}
+                      </td>
+                      <td 
+                        onClick={() => canFillRepr && onOpenReprFill(m.id)}
+                        className={`py-3 px-5 transition-all ${canFillRepr ? 'cursor-pointer hover:bg-indigo-100/60' : ''}`}
                       >
-                        <History size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                        <div className={`flex items-center gap-1.5 text-[10px] font-mono-tech tracking-tight whitespace-nowrap ${
+                          canFillRepr 
+                            ? 'text-indigo-600 font-black' 
+                            : 'text-slate-500 font-bold'
+                        }`}>
+                          {formatDisplayDate(m.dataHoraRepresentanteCIA)}
+                          {canFillRepr && !hasReprDate && <Edit size={10} className="text-indigo-400 animate-pulse" />}
+                        </div>
+                      </td>
+                      <td className="py-3 px-5 text-[10px] font-bold text-emerald-600 font-mono-tech tracking-tight whitespace-nowrap">
+                        {formatDisplayDate(m.dataHoraEntregue)}
+                      </td>
+                      <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">{m.turno}</td>
+                      <td className="py-3 px-5 text-right">
+                        <button 
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setMenuPos({ top: rect.bottom + window.scrollY, left: rect.left });
+                            setMenuOpenId(m.id);
+                          }} 
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-all border border-transparent hover:border-indigo-200"
+                        >
+                          <History size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
