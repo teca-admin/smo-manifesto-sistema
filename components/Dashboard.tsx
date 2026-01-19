@@ -154,8 +154,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </h3>
           <span className="text-[9px] font-bold text-slate-400 uppercase">Input Terminal v2.5</span>
         </div>
-        <div className="p-4 flex flex-col gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Companhia Aérea</label>
               <CustomSelect value={formData.cia} onChange={v => setFormData({...formData, cia: v})} />
@@ -168,19 +168,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Recebido</label>
               <CustomDateTimePicker value={formData.dataHoraRecebido} onChange={v => setFormData({...formData, dataHoraRecebido: v})} />
             </div>
-          </div>
-          
-          <div className="flex justify-end">
-            <button 
-              onClick={() => {
-                if (!formData.cia || !formData.dataHoraPuxado) return onShowAlert('error', 'Campos Obrigatórios Pendentes');
-                onSave(formData);
-                setFormData({ cia: '', dataHoraPuxado: '', dataHoraRecebido: '' });
-              }}
-              className="w-full md:w-[250px] h-10 bg-[#0f172a] hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group shadow-lg shadow-indigo-100/50"
-            >
-              Confirmar Registro
-            </button>
+            <div>
+              <button 
+                onClick={() => {
+                  if (!formData.cia || !formData.dataHoraPuxado) return onShowAlert('error', 'Campos Obrigatórios Pendentes');
+                  onSave(formData);
+                  setFormData({ cia: '', dataHoraPuxado: '', dataHoraRecebido: '' });
+                }}
+                className="w-full h-10 bg-[#0f172a] hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group shadow-lg shadow-indigo-100/50"
+              >
+                Confirmar Registro
+              </button>
+            </div>
           </div>
         </div>
       </div>
