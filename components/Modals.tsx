@@ -101,8 +101,8 @@ export const AssignResponsibilityModal: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-      <div className="bg-white w-full max-w-md border-2 border-slate-900 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.45)] flex flex-col overflow-hidden">
-        <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+      <div className="bg-white w-full max-w-md border-2 border-slate-900 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.45)] flex flex-col relative">
+        <div className="bg-slate-900 text-white p-5 flex items-center justify-between z-10">
           <div className="flex items-center gap-4">
             <div className="p-2 bg-indigo-600">
                <UserPlus size={20} className="text-white" />
@@ -148,9 +148,9 @@ export const AssignResponsibilityModal: React.FC<{
                 </div>
               )}
 
-              {/* Lista de Sugestões */}
+              {/* Lista de Sugestões - Agora com Z-Index alto e sem corte */}
               {searchTerm.length >= 2 && !selected && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-slate-900 shadow-2xl z-[10001] animate-fadeIn">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-slate-900 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-[10010] animate-fadeIn">
                   {funcionarios.length > 0 ? (
                     funcionarios.map(f => (
                       <button 
@@ -193,7 +193,7 @@ export const AssignResponsibilityModal: React.FC<{
           )}
         </div>
 
-        <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4">
+        <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4 mt-auto">
           <button 
             onClick={onClose} 
             className="flex-1 h-12 border-2 border-slate-300 text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all text-slate-500"
