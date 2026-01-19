@@ -26,7 +26,6 @@ function App() {
   
   const getCurrentTimestampBR = () => new Date().toLocaleString('pt-BR');
 
-  // Função para calcular o Turno dinamicamente
   const getTurnoAtual = () => {
     const hora = new Date().getHours();
     if (hora >= 6 && hora < 14) return '1º TURNO';
@@ -72,11 +71,13 @@ function App() {
           cia: item.CIA,
           dataHoraPuxado: item.Manifesto_Puxado,
           dataHoraRecebido: item.Manifesto_Recebido,
+          dataHoraRepresentanteCIA: item.Representante_CIA,
+          dataHoraEntregue: item.Manifesto_Entregue,
           status: item.Status,
           turno: item.Turno,
           carimboDataHR: item["Carimbo_Data/HR"],
           usuarioAcao: item["Usuario_Ação"],
-          usuarioResponsavel: item["Usuario_Operação"], // Mapeando o campo responsável
+          usuarioResponsavel: item["Usuario_Operação"], 
           dataHoraIniciado: item.Manifesto_Iniciado,
           dataHoraDisponivel: item.Manifesto_Disponivel,
           dataHoraConferencia: item["Manifesto_em_Conferência"],
@@ -113,7 +114,6 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc] custom-scrollbar">
-      {/* Header Industrial Comando */}
       <header className="bg-[#0f172a] text-white border-b-2 border-slate-800 shadow-2xl">
         <div className="flex items-center justify-between h-16 px-8">
           <div className="flex items-center gap-6 h-full">
@@ -174,13 +174,15 @@ function App() {
               onSave={async (d) => {
                 setLoadingMsg("Registrando...");
                 const id = await fetchNextId();
-                const turno = getTurnoAtual(); // Calcula o turno aqui
+                const turno = getTurnoAtual();
                 const { error } = await supabase.from('SMO_Sistema').insert({
                   ID_Manifesto: id, 
                   Usuario_Sistema: currentUser?.Usuario, 
                   CIA: d.cia, 
                   Manifesto_Puxado: d.dataHoraPuxado, 
                   Manifesto_Recebido: d.dataHoraRecebido,
+                  Representante_CIA: d.dataHoraRepresentanteCIA, // Campo Representante
+                  Manifesto_Entregue: d.dataHoraEntregue,     // Campo Entrega
                   Status: "Manifesto Recebido", 
                   Turno: turno, 
                   "Carimbo_Data/HR": getCurrentTimestampBR(), 

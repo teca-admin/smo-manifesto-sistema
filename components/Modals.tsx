@@ -3,7 +3,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Manifesto, Funcionario } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-import { UserPlus, Search, UserCheck, Loader2, X } from 'lucide-react';
+// Added Database to the import list from lucide-react to fix the reference error on line 260
+import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface EditModalProps {
@@ -99,6 +100,17 @@ export const AssignResponsibilityModal: React.FC<{
     onConfirm(selected.Nome);
   };
 
+  const handleClickOutside = (e: MouseEvent) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      setFuncionarios([]);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <div className="fixed inset-0 bg-slate-900/80 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
       <div className="bg-white w-full max-w-md border-2 border-slate-900 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.45)] flex flex-col relative">
@@ -148,7 +160,6 @@ export const AssignResponsibilityModal: React.FC<{
                 </div>
               )}
 
-              {/* Lista de Sugestões - Agora com Z-Index alto e sem corte */}
               {searchTerm.length >= 2 && !selected && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-slate-900 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-[10010] animate-fadeIn">
                   {funcionarios.length > 0 ? (
@@ -224,33 +235,83 @@ export const LoadingOverlay: React.FC<{ msg: string }> = ({ msg }) => (
   </div>
 );
 
-export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = ({ data, onClose }) => (
-  <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
-    <div className="bg-white w-full max-w-2xl border border-zinc-300 shadow-2xl flex flex-col">
-      <div className="bg-zinc-900 text-white p-3 text-[11px] font-bold uppercase tracking-widest flex justify-between">
-        <span>LOG DETALHADO: {data.id}</span>
-        <button onClick={onClose}>X</button>
-      </div>
-      <div className="p-4 grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <h5 className="text-[10px] font-bold text-zinc-400 uppercase border-b border-zinc-100 pb-1">Identificação</h5>
-          <div className="flex justify-between text-xs"><span className="text-zinc-500">Status:</span><span className="font-bold">{data.status}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-zinc-500">Companhia:</span><span className="font-bold uppercase">{data.cia}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-zinc-500">Usuário Origem:</span><span className="font-bold">{data.usuario}</span></div>
+export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = ({ data, onClose }) => {
+  const formatTime = (iso: string | undefined) => {
+    if (!iso || iso === '---') return 'Pendente';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString('pt-BR');
+    } catch { return iso; }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+      <div className="bg-white w-full max-w-2xl border-2 border-slate-900 shadow-2xl flex flex-col">
+        <div className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase tracking-widest flex justify-between items-center">
+          <div className="flex items-center gap-3">
+             <Calendar size={16} className="text-indigo-400" />
+             <span>REGISTRO CRONOLÓGICO: {data.id}</span>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={18} /></button>
         </div>
-        <div className="flex flex-col gap-2">
-          <h5 className="text-[10px] font-bold text-zinc-400 uppercase border-b border-zinc-100 pb-1">Cronologia</h5>
-          <div className="flex justify-between text-xs"><span className="text-zinc-500">Puxado:</span><span className="font-bold">{data.dataHoraPuxado || '---'}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-zinc-500">Recebido:</span><span className="font-bold">{data.dataHoraRecebido || '---'}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-zinc-500">Finalizado:</span><span className="font-bold">{data.carimboDataHR || '---'}</span></div>
+        
+        <div className="p-6 grid grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h5 className="text-[10px] font-black text-slate-400 uppercase border-b-2 border-slate-50 pb-2 flex items-center gap-2">
+               <Database size={14} /> Metadados de Origem
+            </h5>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs border-b border-slate-100 pb-1">
+                <span className="font-bold text-slate-500">Status Atual:</span>
+                <span className="font-black text-indigo-600 uppercase">{data.status}</span>
+              </div>
+              <div className="flex justify-between text-xs border-b border-slate-100 pb-1">
+                <span className="font-bold text-slate-500">Companhia:</span>
+                <span className="font-black text-slate-900 uppercase">{data.cia}</span>
+              </div>
+              <div className="flex justify-between text-xs border-b border-slate-100 pb-1">
+                <span className="font-bold text-slate-500">Operador:</span>
+                <span className="font-black text-slate-900 uppercase">{data.usuario}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h5 className="text-[10px] font-black text-slate-400 uppercase border-b-2 border-slate-50 pb-2 flex items-center gap-2">
+               <Clock size={14} /> Linha do Tempo Operacional
+            </h5>
+            <div className="space-y-2">
+              <div className="flex justify-between text-[10px] border-b border-slate-100 pb-1">
+                <span className="font-bold text-slate-500 uppercase">1. Puxado:</span>
+                <span className="font-black text-slate-700 font-mono">{formatTime(data.dataHoraPuxado)}</span>
+              </div>
+              <div className="flex justify-between text-[10px] border-b border-slate-100 pb-1">
+                <span className="font-bold text-slate-500 uppercase">2. Recebido:</span>
+                <span className="font-black text-slate-700 font-mono">{formatTime(data.dataHoraRecebido)}</span>
+              </div>
+              <div className="flex justify-between text-[10px] border-b border-slate-100 pb-1">
+                <span className="font-bold text-indigo-600 uppercase">3. Repr. CIA:</span>
+                <span className="font-black text-indigo-700 font-mono">{formatTime(data.dataHoraRepresentanteCIA)}</span>
+              </div>
+              <div className="flex justify-between text-[10px] border-b border-slate-100 pb-1">
+                <span className="font-bold text-emerald-600 uppercase">4. Entregue:</span>
+                <span className="font-black text-emerald-700 font-mono">{formatTime(data.dataHoraEntregue)}</span>
+              </div>
+              <div className="flex justify-between text-[10px] pt-1">
+                <span className="font-bold text-slate-400 uppercase">Última Modif:</span>
+                <span className="font-black text-slate-400 font-mono">{data.carimboDataHR || '---'}</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="p-4 border-t border-zinc-200">
-        <button onClick={onClose} className="w-full h-9 bg-zinc-100 text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-200 transition-colors">Fechar Detalhes</button>
+
+        <div className="p-6 border-t border-slate-100 bg-slate-50">
+          <button onClick={onClose} className="w-full h-11 bg-white border-2 border-slate-200 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all">Fechar Auditoria de Log</button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const CancellationModal: React.FC<{ onConfirm: () => void, onClose: () => void }> = ({ onConfirm, onClose }) => (
   <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn">

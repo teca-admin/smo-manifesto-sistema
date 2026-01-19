@@ -1,6 +1,6 @@
 
 -- =============================================================================
--- SISTEMA DE MANIFESTO OPERACIONAL (SMO) - VERSÃO 2.0 (WFS & CIA)
+-- SISTEMA DE MANIFESTO OPERACIONAL (SMO) - VERSÃO 2.5 (WFS & CIA)
 -- =============================================================================
 
 -- 1. TABELA DE USUÁRIOS E PERFIS
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public."Cadastro_de_Perfil" (
     created_at timestamptz default now()
 );
 
--- 2. TABELA PRINCIPAL DE MANIFESTOS (Mestre)
+-- 2. TABELA PRINCIPAL DE MANIFESTOS (Mestre) - Versão 2.5
 CREATE TABLE IF NOT EXISTS public."SMO_Sistema" (
     id bigint primary key generated always as identity,
     "ID_Manifesto" text unique not null,
@@ -22,12 +22,15 @@ CREATE TABLE IF NOT EXISTS public."SMO_Sistema" (
     "CIA" text not null,
     "Manifesto_Puxado" text,
     "Manifesto_Recebido" text,
+    "Representante_CIA" text, -- Marco temporal do Representante
+    "Manifesto_Entregue" text,  -- Marco temporal da Entrega Final
     "Cargas_(IN/H)" integer default 0,
     "Cargas_(IZ)" integer default 0,
     "Status" text default 'Manifesto Recebido',
     "Turno" text,
     "Carimbo_Data/HR" text,
     "Usuario_Ação" text,
+    "Usuario_Operação" text,
     "Manifesto_Iniciado" text,
     "Manifesto_Disponivel" text,
     "Manifesto_em_Conferência" text,
@@ -38,7 +41,6 @@ CREATE TABLE IF NOT EXISTS public."SMO_Sistema" (
 );
 
 -- 3. TABELA DE REGISTROS OPERACIONAIS (Log de Eventos)
--- Armazena o histórico imutável das ações WFS e CIA.
 CREATE TABLE IF NOT EXISTS public."SMO_Operacional" (
     id bigint primary key generated always as identity,
     "ID_Manifesto" text references public."SMO_Sistema"("ID_Manifesto") on delete cascade,
@@ -47,15 +49,24 @@ CREATE TABLE IF NOT EXISTS public."SMO_Operacional" (
     "Cargas_(IN/H)" integer,
     "Cargas_(IZ)" integer,
     "Justificativa" text,
-    "Created_At_BR" text, -- Data formatada dd/mm/aaaa hh:mm:ss
+    "Created_At_BR" text,
     created_at timestamptz default now()
 );
 
--- 4. ÍNDICES
+-- 4. TABELA DE FUNCIONÁRIOS
+CREATE TABLE IF NOT EXISTS public."Funcionarios_WFS" (
+    id bigint primary key generated always as identity,
+    "Nome" text not null,
+    "Cargo" text,
+    "Ativo" boolean default true,
+    created_at timestamptz default now()
+);
+
+-- 5. ÍNDICES
 CREATE INDEX IF NOT EXISTS idx_ops_manifesto_id ON public."SMO_Operacional" ("ID_Manifesto");
 CREATE INDEX IF NOT EXISTS idx_sys_manifesto_id ON public."SMO_Sistema" ("ID_Manifesto");
 
--- 5. DADOS INICIAIS
+-- 6. DADOS INICIAIS
 INSERT INTO public."Cadastro_de_Perfil" ("Usuario", "Senha", "Nome_Completo") 
 VALUES ('Rafael Rodrigues', '123456', 'Rafael Rodrigues')
 ON CONFLICT ("Usuario") DO UPDATE SET "Senha" = EXCLUDED."Senha";

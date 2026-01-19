@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Manifesto, User } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-import { Search, History, Edit3, XCircle, Undo2, CheckSquare, Plus, Database, Filter } from 'lucide-react';
+import { Search, History, Edit3, XCircle, Undo2, CheckSquare, Plus, Database, Filter, Clock } from 'lucide-react';
 
 interface DashboardProps {
   currentUser: User;
@@ -20,12 +20,18 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ 
   manifestos, onSave, onAction, openHistory, openEdit, onShowAlert
 }) => {
-  const [formData, setFormData] = useState({ cia: '', dataHoraPuxado: '', dataHoraRecebido: '' });
+  const [formData, setFormData] = useState({ 
+    cia: '', 
+    dataHoraPuxado: '', 
+    dataHoraRecebido: '',
+    dataHoraRepresentanteCIA: '',
+    dataHoraEntregue: ''
+  });
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
 
-  const formatDisplayDate = (isoStr: string) => {
-    if (!isoStr || isoStr === '---') return '---';
+  const formatDisplayDate = (isoStr: string | undefined) => {
+    if (!isoStr || isoStr === '---' || isoStr === '') return '---';
     try {
       const d = new Date(isoStr);
       if (isNaN(d.getTime())) return isoStr;
@@ -60,36 +66,50 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
+      {/* PAINEL DE CADASTRO EXPANDIDO */}
       <div className="bg-white border-2 border-slate-200 panel-shadow">
         <div className="bg-slate-50 px-5 py-2.5 border-b-2 border-slate-200 flex items-center justify-between">
           <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
             <Plus size={14} className="text-indigo-600" /> Registro de Novo Manifesto
           </h3>
-          <span className="text-[9px] font-bold text-slate-400 uppercase">Audit Level 1</span>
+          <span className="text-[9px] font-bold text-slate-400 uppercase">Input Terminal v2.5</span>
         </div>
-        <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Companhia Aérea</label>
-            <CustomSelect value={formData.cia} onChange={v => setFormData({...formData, cia: v})} />
+        <div className="p-4 flex flex-col gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Companhia Aérea</label>
+              <CustomSelect value={formData.cia} onChange={v => setFormData({...formData, cia: v})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Puxado</label>
+              <CustomDateTimePicker value={formData.dataHoraPuxado} onChange={v => setFormData({...formData, dataHoraPuxado: v})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Recebido</label>
+              <CustomDateTimePicker value={formData.dataHoraRecebido} onChange={v => setFormData({...formData, dataHoraRecebido: v})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">Representante CIA</label>
+              <CustomDateTimePicker value={formData.dataHoraRepresentanteCIA} onChange={v => setFormData({...formData, dataHoraRepresentanteCIA: v})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Manifesto Entregue</label>
+              <CustomDateTimePicker value={formData.dataHoraEntregue} onChange={v => setFormData({...formData, dataHoraEntregue: v})} />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Puxado</label>
-            <CustomDateTimePicker value={formData.dataHoraPuxado} onChange={v => setFormData({...formData, dataHoraPuxado: v})} />
+          
+          <div className="flex justify-end">
+            <button 
+              onClick={() => {
+                if (!formData.cia || !formData.dataHoraPuxado) return onShowAlert('error', 'Campos Obrigatórios Pendentes');
+                onSave(formData);
+                setFormData({ cia: '', dataHoraPuxado: '', dataHoraRecebido: '', dataHoraRepresentanteCIA: '', dataHoraEntregue: '' });
+              }}
+              className="w-full md:w-[250px] h-10 bg-[#0f172a] hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group shadow-lg shadow-indigo-100/50"
+            >
+              Confirmar Registro
+            </button>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Recebido</label>
-            <CustomDateTimePicker value={formData.dataHoraRecebido} onChange={v => setFormData({...formData, dataHoraRecebido: v})} />
-          </div>
-          <button 
-            onClick={() => {
-              if (!formData.cia || !formData.dataHoraPuxado) return onShowAlert('error', 'Campos Obrigatórios Pendentes');
-              onSave(formData);
-              setFormData({ cia: '', dataHoraPuxado: '', dataHoraRecebido: '' });
-            }}
-            className="w-full h-10 bg-[#0f172a] hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group shadow-lg shadow-indigo-100/50"
-          >
-            Confirmar Registro
-          </button>
         </div>
       </div>
 
@@ -112,7 +132,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-100/50 border-b border-slate-200">
-                {['ID Operacional', 'Status Atual', 'Companhia', 'Manifesto Puxado', 'Manifesto Recebido', 'Turno', 'Auditoria'].map(h => (
+                {['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Auditoria'].map(h => (
                   <th key={h} className="text-left py-3 px-5 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -132,6 +152,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </td>
                   <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
                     {formatDisplayDate(m.dataHoraRecebido)}
+                  </td>
+                  <td className="py-3 px-5 text-[10px] font-bold text-indigo-500 font-mono-tech tracking-tight whitespace-nowrap">
+                    {formatDisplayDate(m.dataHoraRepresentanteCIA)}
+                  </td>
+                  <td className="py-3 px-5 text-[10px] font-bold text-emerald-600 font-mono-tech tracking-tight whitespace-nowrap">
+                    {formatDisplayDate(m.dataHoraEntregue)}
                   </td>
                   <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">{m.turno}</td>
                   <td className="py-3 px-5">

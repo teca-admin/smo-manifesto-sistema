@@ -5,6 +5,8 @@ export interface Manifesto {
   cia: string;
   dataHoraPuxado: string;
   dataHoraRecebido: string;
+  dataHoraRepresentanteCIA?: string; // Novo campo
+  dataHoraEntregue?: string;        // Novo campo
   status: string;
   turno: string;
   carimboDataHR?: string;
@@ -50,6 +52,8 @@ export interface SMO_Sistema_DB {
   CIA: string;
   Manifesto_Puxado: string;
   Manifesto_Recebido: string;
+  Representante_CIA?: string; // Novo campo no DB
+  Manifesto_Entregue?: string;  // Novo campo no DB
   Status: string;
   ID_Manifesto: string;
   Turno: string;
