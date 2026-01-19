@@ -1,27 +1,18 @@
 
-
 import { createClient } from '@supabase/supabase-js';
 
 // ------------------------------------------------------------------
-// CONFIGURAÇÃO SUPABASE (EASYPANEL / SELF-HOSTED)
-// ------------------------------------------------------------------
-// Substitua as variáveis abaixo pelos dados do seu Supabase no Easypanel.
-//
-// ONDE ENCONTRAR:
-// 1. Abra o Supabase Studio (Dashboard do seu Supabase no Easypanel).
-// 2. Vá em "Settings" (ícone de engrenagem) -> "API".
-// 3. Copie a URL do projeto e a chave "anon" / "public".
+// CONFIGURAÇÃO SUPABASE (NOVO PROJETO)
 // ------------------------------------------------------------------
 
-const SUPABASE_URL = 'https://teca-admin-supabase.ly7t0m.easypanel.host/'; 
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE';
+const SUPABASE_URL = 'https://wntkbpnnpvpdpvvjygkr.supabase.co'; 
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndudGticG5ucHZwZHB2dmp5Z2tyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzI0NDEsImV4cCI6MjA4NDQwODQ0MX0.Rr-7duorP381G2DEFK5vUOgb55U5dmcBx9LhgMGSVwc';
 
-// Define o schema do banco de dados onde estão as tabelas do sistema PRINCIPAL
-export const DB_SCHEMA = 'SMO_Sistema_de_Manifesto_Operacional';
+// Define o schema do banco de dados como o padrão do Supabase
+export const DB_SCHEMA = 'public';
 
-// Define o schema do banco de dados onde estão os logs de performance
-// ATUALIZADO: Usando o mesmo schema permitido para evitar erro de permissão da API
-export const PERFORMANCE_SCHEMA = 'SMO_Sistema_de_Manifesto_Operacional';
+// Schema used for Performance Monitor tables and RPCs
+export const PERFORMANCE_SCHEMA = 'public';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
@@ -30,6 +21,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     detectSessionInUrl: true
   },
   db: {
-    schema: DB_SCHEMA // Define o schema padrão para todas as consultas (pode ser sobrescrito)
+    schema: DB_SCHEMA // Define o schema padrão (public) para todas as consultas
   }
 });

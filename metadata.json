@@ -1,5 +1,5 @@
 {
-  "name": "SMO - Manifesto Sistema",
-  "description": "Sistema de Controle de Manifesto Operacional - Frontend Port",
+  "name": "SMO - Sistema de Manifesto Operacional",
+  "description": "Controle operacional de manifestos aéreos com fluxo sequencial MAO.",
   "requestFramePermissions": []
 }

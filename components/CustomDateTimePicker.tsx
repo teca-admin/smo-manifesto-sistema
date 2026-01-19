@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Check } from 'lucide-react';
 
 interface CustomDateTimePickerProps {
   value: string;
@@ -12,421 +13,205 @@ interface CustomDateTimePickerProps {
 export const CustomDateTimePicker: React.FC<CustomDateTimePickerProps> = ({ 
   value, 
   onChange, 
-  placeholder = "dd/mm/aaaa --:--",
   disabled = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [viewDate, setViewDate] = useState(new Date()); // For navigation
+  const [inputValue, setInputValue] = useState("");
+  const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [inputValue, setInputValue] = useState(""); // State for manual input
-  
   const containerRef = useRef<HTMLDivElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
 
-  // Generate stable IDs for the time lists so scroll buttons always work
-  const hoursListId = useMemo(() => `hours-list-${Math.random().toString(36).substr(2, 9)}`, []);
-  const minutesListId = useMemo(() => `minutes-list-${Math.random().toString(36).substr(2, 9)}`, []);
-
-  // Helper to format Date to dd/mm/yyyy hh:mm
-  const formatDateDisplay = (date: Date | null) => {
-    if (!date) return "";
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  };
-
-  // Initialize from props
+  // Sincroniza valor externo com estado interno
   useEffect(() => {
     if (value) {
       const d = new Date(value);
       if (!isNaN(d.getTime())) {
         setSelectedDate(d);
-        setViewDate(d);
-        setInputValue(formatDateDisplay(d));
-      } else {
-        setInputValue("");
+        setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
+        const datePart = d.toLocaleDateString('pt-BR');
+        const timePart = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        setInputValue(`${datePart} ${timePart}`);
       }
     } else {
-      setSelectedDate(null);
       setInputValue("");
+      setSelectedDate(null);
     }
   }, [value]);
 
-  // Calculate position when opening
+  // Calcula posição do popover
   useEffect(() => {
     if (isOpen && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      const scrollX = window.scrollX || document.documentElement.scrollLeft;
-      
-      // Fix: 'zoom' does not exist on type 'CSSStyleDeclaration'. Cast to any.
-      const zoom = parseFloat((window.getComputedStyle(document.body) as any).zoom) || 1;
-
-      setCoords({
-        top: (rect.bottom + scrollY) / zoom + 5,
-        left: (rect.left + scrollX) / zoom
-      });
+      setCoords({ top: rect.bottom + window.scrollY, left: rect.left });
     }
   }, [isOpen]);
 
-  // Handle outside click & scroll/resize interactions
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Check if click is outside input container AND outside popover
-      if (
-        containerRef.current && 
-        !containerRef.current.contains(event.target as Node) &&
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-        // On click outside, validate what was typed
-        validateInput();
-      }
-    };
+  const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 
-    const handleScrollOrResize = (e: Event) => {
-      // Check if the scroll event target is within the popover (e.g. scrolling time list)
-      if (isOpen && popoverRef.current && e.target instanceof Node && popoverRef.current.contains(e.target)) {
-        return;
-      }
-      // If it's a window resize or a scroll outside, close it
-      if (isOpen) setIsOpen(false);
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("scroll", handleScrollOrResize, true);
-    window.addEventListener("resize", handleScrollOrResize);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("scroll", handleScrollOrResize, true);
-      window.removeEventListener("resize", handleScrollOrResize);
-    };
-  }, [isOpen, inputValue]);
-
-  const updateParent = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const isoString = `${year}-${month}-${day}T${hours}:${minutes}`;
-    onChange(isoString);
-    setInputValue(formatDateDisplay(date));
-  };
-
-  // --- MANUAL INPUT HANDLING ---
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value;
-    
-    // Simple Masking Logic for dd/mm/yyyy hh:mm
-    const digits = val.replace(/\D/g, '');
-    let formatted = "";
-    if (digits.length > 0) formatted += digits.substring(0, 2);
-    if (digits.length >= 3) formatted += '/' + digits.substring(2, 4);
-    if (digits.length >= 5) formatted += '/' + digits.substring(4, 8);
-    if (digits.length >= 9) formatted += ' ' + digits.substring(8, 10);
-    if (digits.length >= 11) formatted += ':' + digits.substring(10, 12);
-
-    setInputValue(formatted);
-
-    // Real-time parsing if complete
-    if (formatted.length === 16) {
-      const parts = formatted.split(/[\/\s:]/); // Split by / space :
-      if (parts.length === 5) {
-        const d = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        const y = parseInt(parts[2], 10);
-        const h = parseInt(parts[3], 10);
-        const min = parseInt(parts[4], 10);
-        
-        const dateObj = new Date(y, m, d, h, min);
-        // Basic check if valid date
-        if (!isNaN(dateObj.getTime()) && dateObj.getFullYear() === y && dateObj.getMonth() === m) {
-           setSelectedDate(dateObj);
-           setViewDate(dateObj);
-           const year = dateObj.getFullYear();
-           const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-           const day = String(dateObj.getDate()).padStart(2, '0');
-           const hours = String(dateObj.getHours()).padStart(2, '0');
-           const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-           onChange(`${year}-${month}-${day}T${hours}:${minutes}`);
-        }
-      }
-    }
-  };
-
-  const validateInput = () => {
-    if (!inputValue.trim()) {
-      clearDate();
-      return;
-    }
-    
-    const parts = inputValue.split(/[\/\s:]/);
-    let valid = false;
-    if (parts.length === 5) {
-      const d = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10) - 1;
-      const y = parseInt(parts[2], 10);
-      const h = parseInt(parts[3], 10);
-      const min = parseInt(parts[4], 10);
-      
-      const dateObj = new Date(y, m, d, h, min);
-      if (!isNaN(dateObj.getTime()) && dateObj.getFullYear() === y) {
-        valid = true;
-        setSelectedDate(dateObj);
-        updateParent(dateObj);
-      }
-    }
-
-    if (!valid) {
-      if (selectedDate) {
-        setInputValue(formatDateDisplay(selectedDate));
-      } else {
-        setInputValue("");
-        onChange("");
-      }
-    }
-  };
-
-  const handleInputBlur = () => {
-    validateInput();
-  };
-
-  // --- CALENDAR LOGIC ---
-
-  const handleDayClick = (day: number) => {
-    const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
-    if (selectedDate) {
-      newDate.setHours(selectedDate.getHours());
-      newDate.setMinutes(selectedDate.getMinutes());
-    } else {
-      const now = new Date();
-      newDate.setHours(now.getHours());
-      newDate.setMinutes(now.getMinutes());
-    }
+  const handleDateSelect = (day: number) => {
+    const newDate = selectedDate ? new Date(selectedDate) : new Date();
+    newDate.setFullYear(viewDate.getFullYear());
+    newDate.setMonth(viewDate.getMonth());
+    newDate.setDate(day);
     setSelectedDate(newDate);
-    updateParent(newDate);
+    onChange(newDate.toISOString());
   };
 
-  const handleTimeChange = (type: 'hours' | 'minutes', val: number) => {
-    let newDate = selectedDate ? new Date(selectedDate) : new Date();
-    if (!selectedDate) {
-       newDate.setFullYear(viewDate.getFullYear());
-       newDate.setMonth(viewDate.getMonth());
-       newDate.setDate(new Date().getDate()); 
-    }
-    if (type === 'hours') newDate.setHours(val);
+  const handleTimeChange = (type: 'hour' | 'minute', val: number) => {
+    const newDate = selectedDate ? new Date(selectedDate) : new Date();
+    if (type === 'hour') newDate.setHours(val);
     else newDate.setMinutes(val);
     setSelectedDate(newDate);
-    updateParent(newDate);
+    onChange(newDate.toISOString());
   };
 
-  const setToday = (e?: React.MouseEvent) => {
-    // Stop propagation to be safe, though container handler covers it
-    e?.stopPropagation(); 
-    const now = new Date();
-    setSelectedDate(now);
-    setViewDate(now);
-    updateParent(now);
-    setIsOpen(false);
-  };
+  const renderCalendar = () => {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const totalDays = daysInMonth(year, month);
+    const startDay = firstDayOfMonth(year, month);
+    const days = [];
 
-  const clearDate = () => {
-    setSelectedDate(null);
-    setInputValue("");
-    onChange("");
-    setIsOpen(false);
-  };
+    // Espaços vazios
+    for (let i = 0; i < startDay; i++) days.push(<div key={`empty-${i}`} className="h-8"></div>);
 
-  const changeMonth = (delta: number) => {
-    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + delta, 1));
+    // Dias do mês
+    for (let d = 1; d <= totalDays; d++) {
+      const isSelected = selectedDate?.getDate() === d && selectedDate?.getMonth() === month && selectedDate?.getFullYear() === year;
+      const isToday = new Date().getDate() === d && new Date().getMonth() === month && new Date().getFullYear() === year;
+      
+      days.push(
+        <button
+          key={d}
+          onClick={() => handleDateSelect(d)}
+          className={`h-8 w-full text-[10px] font-bold flex items-center justify-center transition-all border ${
+            isSelected 
+              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md z-10' 
+              : isToday
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'
+                : 'border-transparent text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          {d}
+        </button>
+      );
+    }
+    return days;
   };
-
-  const scrollList = (id: string, amount: number) => {
-    const el = document.getElementById(id);
-    if(el) el.scrollBy({ top: amount, behavior: 'smooth' });
-  };
-
-  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
-  const firstDayOfWeek = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay(); 
-  
-  const days = [];
-  for (let i = 0; i < firstDayOfWeek; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(i);
 
   const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      {/* Trigger Area with Manual Input */}
       <div 
-        className={`
-          flex items-center justify-between w-full p-[8px_12px] border-2 rounded-[8px] text-[13px] bg-white transition-all
-          ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-100' : 'hover:border-[#690c76] cursor-text'}
-          ${isOpen ? 'border-[#690c76] shadow-[0_0_0_3px_rgba(105,12,118,0.1)]' : 'border-[#e0e0e0]'}
-        `}
-        onClick={() => {
-           if (!disabled) {
-             inputRef.current?.focus();
-           }
-        }}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`w-full h-10 px-3 pr-10 border-2 flex items-center text-xs font-bold transition-all cursor-pointer select-none ${
+          disabled 
+            ? 'bg-slate-100 text-slate-400 border-slate-200' 
+            : isOpen 
+              ? 'bg-white border-indigo-600 text-slate-900' 
+              : 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
+        }`}
       >
-        <input 
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onBlur={handleInputBlur}
-          onFocus={() => {
-            if (!disabled && !isOpen) setIsOpen(true);
-          }}
-          placeholder={placeholder}
-          disabled={disabled}
-          className="flex-1 w-full bg-transparent border-none outline-none text-gray-900 font-medium placeholder-gray-400 text-[13px]"
-          maxLength={16}
-        />
-        
-        <div className="flex items-center gap-2 pl-2 border-l border-gray-200 ml-2">
-           {inputValue && !disabled && (
-             <X 
-               size={14} 
-               className="text-gray-400 hover:text-[#dc3545] cursor-pointer" 
-               onClick={(e) => { e.stopPropagation(); clearDate(); }}
-             />
-           )}
-           <CalendarIcon size={14} className="text-[#690c76] cursor-pointer" onClick={(e) => {
-             e.stopPropagation();
-             if(!disabled) {
-               setIsOpen(!isOpen);
-               if (!isOpen) setTimeout(() => inputRef.current?.focus(), 50);
-             }
-           }} />
-        </div>
+        <span className={inputValue ? 'text-slate-900' : 'text-slate-300'}>
+          {inputValue || "DD/MM/AAAA HH:MM"}
+        </span>
+        <CalendarIcon size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors ${isOpen ? 'text-indigo-600' : 'text-slate-400'}`} />
       </div>
 
-      {/* Popover via Portal */}
       {isOpen && createPortal(
         <div 
-          ref={popoverRef}
-          // IMPORTANT: Prevent clicks inside the calendar from bubbling to document listener
-          // This ensures clicking gaps/padding/borders doesn't trigger "click outside" and closes the modal
-          // We use preventDefault to prevent the input from losing focus (blur), which would trigger validation/closing
-          onMouseDown={(e) => {
-             e.preventDefault(); 
-             e.nativeEvent.stopImmediatePropagation();
-          }}
-          className="absolute z-[10050] bg-white border border-gray-200 rounded-[12px] shadow-[0_10px_40px_rgba(0,0,0,0.15)] p-0 w-[320px] flex overflow-hidden animate-slideIn-novo"
-          style={{ top: coords.top, left: coords.left, height: '320px' }} 
+          className="fixed z-[10050] bg-white border-2 border-slate-800 shadow-2xl flex flex-col w-[280px] animate-fadeIn"
+          style={{ top: coords.top + 4, left: coords.left }}
         >
-          {/* Calendar Section */}
-          <div className="flex-1 p-4 border-r border-gray-200 flex flex-col h-full">
-            <div className="flex justify-between items-center mb-4 text-gray-900 shrink-0">
-              <span className="font-bold capitalize text-sm">
-                {months[viewDate.getMonth()]} de {viewDate.getFullYear()}
-              </span>
-              <div className="flex gap-1">
-                <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><ChevronLeft size={18} /></button>
-                <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><ChevronRight size={18} /></button>
-              </div>
+          {/* Header Calendário */}
+          <div className="bg-slate-900 text-white p-3 flex items-center justify-between">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)); }}
+              className="p-1 hover:bg-slate-700 rounded transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div className="text-[10px] font-black uppercase tracking-widest">
+              {months[viewDate.getMonth()]} {viewDate.getFullYear()}
             </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)); }}
+              className="p-1 hover:bg-slate-700 rounded transition-colors"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
 
-            <div className="grid grid-cols-7 gap-1 mb-2 shrink-0">
+          {/* Grid de Dias */}
+          <div className="p-3">
+            <div className="grid grid-cols-7 mb-1">
               {['D','S','T','Q','Q','S','S'].map(d => (
-                <div key={d} className="text-center text-[10px] text-gray-500 font-bold">{d}</div>
+                <div key={d} className="text-[8px] font-black text-slate-400 text-center uppercase">{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-1 flex-1 overflow-y-auto custom-scrollbar content-start">
-              {days.map((day, idx) => (
-                <div key={idx} className="aspect-square flex items-center justify-center">
-                  {day ? (
-                    <button
-                      onClick={() => handleDayClick(day)}
-                      className={`
-                        w-8 h-8 rounded text-[13px] flex items-center justify-center transition-all
-                        ${selectedDate && selectedDate.getDate() === day && selectedDate.getMonth() === viewDate.getMonth() && selectedDate.getFullYear() === viewDate.getFullYear()
-                          ? 'bg-[#0d6efd] text-white font-bold shadow-md' 
-                          : 'text-gray-700 hover:bg-gray-100'}
-                      `}
-                    >
-                      {day}
-                    </button>
-                  ) : <div />}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-2 mt-auto pt-3 border-t border-gray-200 shrink-0">
-              <button 
-                onClick={clearDate} 
-                className="flex-1 bg-gray-100 text-gray-600 border border-gray-200 p-[8px] rounded-[8px] text-[12px] font-semibold hover:bg-gray-200 transition-all"
-              >
-                Limpar
-              </button>
-              <button 
-                onClick={setToday} 
-                className="flex-1 bg-[#0d6efd] text-white border border-[#0d6efd] p-[8px] rounded-[8px] text-[12px] font-bold hover:bg-[#0b5ed7] transition-all shadow-sm"
-              >
-                Hoje
-              </button>
+            <div className="grid grid-cols-7 gap-px bg-slate-100 border border-slate-100">
+              {renderCalendar()}
             </div>
           </div>
 
-          {/* Time Section */}
-          <div className="w-[90px] bg-gray-50 flex flex-col h-full shrink-0">
-            <div className="p-2 text-center border-b border-gray-200 shrink-0">
-              <Clock size={16} className="text-gray-400 mx-auto mb-1" />
-              <div className="text-[10px] text-gray-500">Hora</div>
+          {/* Seletor de Hora Customizado (Sem Native Select) */}
+          <div className="border-t border-slate-100 p-3 bg-slate-50">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock size={12} className="text-slate-400" />
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Ajuste de Horário</span>
             </div>
             
-            <div className="flex justify-around border-b border-gray-200 py-1 shrink-0 bg-gray-50">
-              <button onClick={() => scrollList(hoursListId, -40)} className="p-1 hover:bg-gray-200 rounded"><ChevronUp size={14} className="text-gray-500 hover:text-gray-800"/></button>
-              <button onClick={() => scrollList(minutesListId, -40)} className="p-1 hover:bg-gray-200 rounded"><ChevronUp size={14} className="text-gray-500 hover:text-gray-800"/></button>
-            </div>
-
-            <div className="flex flex-1 overflow-hidden relative">
-               <div id={hoursListId} className="flex-1 overflow-y-auto custom-scrollbar border-r border-gray-200 scroll-smooth">
-                  <div className="py-1">
-                    {Array.from({length: 24}).map((_, h) => (
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 flex flex-col items-center">
+                <span className="text-[8px] font-bold text-slate-400 uppercase mb-1">Hora</span>
+                <div className="flex flex-col w-full border border-slate-200 bg-white rounded overflow-hidden">
+                  <div className="h-20 overflow-y-auto custom-scrollbar flex flex-col items-center">
+                    {Array.from({length: 24}, (_, i) => (
                       <button 
-                          key={h}
-                          onClick={() => handleTimeChange('hours', h)}
-                          className={`w-full py-2 text-[12px] text-center hover:bg-gray-200 ${selectedDate?.getHours() === h ? 'bg-[#0d6efd] text-white font-bold' : 'text-gray-500'}`}
+                        key={i} 
+                        onClick={() => handleTimeChange('hour', i)}
+                        className={`w-full py-1 text-[11px] font-bold transition-colors ${selectedDate?.getHours() === i ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                       >
-                          {String(h).padStart(2, '0')}
+                        {String(i).padStart(2, '0')}
                       </button>
                     ))}
                   </div>
-               </div>
-               <div id={minutesListId} className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth">
-                  <div className="py-1">
-                    {Array.from({length: 12}).map((_, i) => {
-                      const m = i * 5; 
-                      return (
-                      <button 
-                          key={m}
-                          onClick={() => handleTimeChange('minutes', m)}
-                          className={`w-full py-2 text-[12px] text-center hover:bg-gray-200 ${selectedDate && Math.abs(selectedDate.getMinutes() - m) < 5 ? 'bg-[#0d6efd] text-white font-bold' : 'text-gray-500'}`}
-                      >
-                          {String(m).padStart(2, '0')}
-                      </button>
-                    )})}
-                  </div>
-               </div>
-            </div>
+                </div>
+              </div>
 
-            <div className="flex justify-around border-t border-gray-200 py-1 shrink-0 bg-gray-50">
-               <button onClick={() => scrollList(hoursListId, 40)} className="p-1 hover:bg-gray-200 rounded"><ChevronDown size={14} className="text-gray-500 hover:text-gray-800"/></button>
-               <button onClick={() => scrollList(minutesListId, 40)} className="p-1 hover:bg-gray-200 rounded"><ChevronDown size={14} className="text-gray-500 hover:text-gray-800"/></button>
+              <div className="text-slate-300 font-bold mt-4">:</div>
+
+              <div className="flex-1 flex flex-col items-center">
+                <span className="text-[8px] font-bold text-slate-400 uppercase mb-1">Minuto</span>
+                <div className="flex flex-col w-full border border-slate-200 bg-white rounded overflow-hidden">
+                  <div className="h-20 overflow-y-auto custom-scrollbar flex flex-col items-center">
+                    {Array.from({length: 60}, (_, i) => (
+                      <button 
+                        key={i} 
+                        onClick={() => handleTimeChange('minute', i)}
+                        className={`w-full py-1 text-[11px] font-bold transition-colors ${selectedDate?.getMinutes() === i ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        {String(i).padStart(2, '0')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setIsOpen(false)}
+                className="bg-indigo-600 text-white p-2 h-10 w-10 flex items-center justify-center rounded shadow-lg hover:bg-indigo-700 transition-all self-end"
+              >
+                <Check size={18} />
+              </button>
             </div>
           </div>
+          
+          {/* Overlay invisível para fechar ao clicar fora */}
+          <div className="fixed inset-0 z-[-1]" onClick={() => setIsOpen(false)}></div>
         </div>,
         document.body
       )}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity, Server, Database, AlertTriangle, ShieldCheck, X, Zap, List, RefreshCw, Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, User, Users, CalendarDays, BarChart2, PlusCircle, Edit, XCircle, RotateCcw, LogIn, LogOut, CalendarRange } from 'lucide-react';
 import { Manifesto, PerformanceLogDB, User as UserType } from '../types';
@@ -11,9 +12,8 @@ interface PerformanceMonitorProps {
 }
 
 // Extensão da interface para incluir o campo novo
+// Fixed: Using properties already present in PerformanceLogDB or adding new ones specific to the UI state
 interface ExtendedPerformanceLog extends PerformanceLogDB {
-  detalhes_hora?: Record<string, number>;
-  ultima_atualizacao?: string;
   // Histórico diário para gráfico mensal
   dailyHistory?: ExtendedPerformanceLog[]; 
 }
@@ -25,9 +25,9 @@ interface ExtendedPerformanceLog extends PerformanceLogDB {
   Rode este script no Supabase SQL Editor para corrigir o problema onde
   o horário UTC do servidor grava dados no "dia seguinte":
 
-  DROP FUNCTION IF EXISTS "SMO_Sistema_de_Manifesto_Operacional".registrar_metricas(int, int, numeric, text, text, timestamptz, int, int, int, int, int, int);
+  DROP FUNCTION IF EXISTS public.registrar_metricas;
 
-  CREATE OR REPLACE FUNCTION "SMO_Sistema_de_Manifesto_Operacional".registrar_metricas(
+  CREATE OR REPLACE FUNCTION public.registrar_metricas(
     p_reqs int, p_n8n int, p_banda numeric, p_usuario text, p_hora text, p_timestamp_iso timestamptz,
     p_cadastro int default 0, p_edicao int default 0, p_cancelamento int default 0, p_anulacao int default 0,
     p_login int default 0, p_logoff int default 0,
@@ -37,10 +37,10 @@ interface ExtendedPerformanceLog extends PerformanceLogDB {
     v_data_final date;
   begin
     v_data_final := coalesce(p_data_local, current_date);
-    insert into "SMO_Sistema_de_Manifesto_Operacional"."Log_Performance_SMO_Sistema" (data, usuarios_unicos, detalhes_hora)
+    insert into public."Log_Performance_SMO_Sistema" (data, usuarios_unicos, detalhes_hora)
     values (v_data_final, '[]'::jsonb, '{}'::jsonb) on conflict (data) do nothing;
 
-    update "SMO_Sistema_de_Manifesto_Operacional"."Log_Performance_SMO_Sistema"
+    update public."Log_Performance_SMO_Sistema"
     set 
       total_requisicoes = total_requisicoes + p_reqs,
       total_n8n = total_n8n + p_n8n,
@@ -58,7 +58,7 @@ interface ExtendedPerformanceLog extends PerformanceLogDB {
   end;
   $$ language plpgsql;
 
-  grant execute on function "SMO_Sistema_de_Manifesto_Operacional".registrar_metricas to anon, authenticated, service_role;
+  grant execute on function public.registrar_metricas to anon, authenticated, service_role;
   =====================================================================================
 */
 
