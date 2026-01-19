@@ -23,9 +23,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [formData, setFormData] = useState({ 
     cia: '', 
     dataHoraPuxado: '', 
-    dataHoraRecebido: '',
-    dataHoraRepresentanteCIA: '',
-    dataHoraEntregue: ''
+    dataHoraRecebido: ''
   });
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -66,7 +64,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
-      {/* PAINEL DE CADASTRO EXPANDIDO */}
+      {/* PAINEL DE CADASTRO SIMPLIFICADO */}
       <div className="bg-white border-2 border-slate-200 panel-shadow">
         <div className="bg-slate-50 px-5 py-2.5 border-b-2 border-slate-200 flex items-center justify-between">
           <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -75,7 +73,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <span className="text-[9px] font-bold text-slate-400 uppercase">Input Terminal v2.5</span>
         </div>
         <div className="p-4 flex flex-col gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Companhia Aérea</label>
               <CustomSelect value={formData.cia} onChange={v => setFormData({...formData, cia: v})} />
@@ -88,14 +86,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Recebido</label>
               <CustomDateTimePicker value={formData.dataHoraRecebido} onChange={v => setFormData({...formData, dataHoraRecebido: v})} />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-indigo-500 uppercase tracking-tighter">Representante CIA</label>
-              <CustomDateTimePicker value={formData.dataHoraRepresentanteCIA} onChange={v => setFormData({...formData, dataHoraRepresentanteCIA: v})} />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Manifesto Entregue</label>
-              <CustomDateTimePicker value={formData.dataHoraEntregue} onChange={v => setFormData({...formData, dataHoraEntregue: v})} />
-            </div>
           </div>
           
           <div className="flex justify-end">
@@ -103,7 +93,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onClick={() => {
                 if (!formData.cia || !formData.dataHoraPuxado) return onShowAlert('error', 'Campos Obrigatórios Pendentes');
                 onSave(formData);
-                setFormData({ cia: '', dataHoraPuxado: '', dataHoraRecebido: '', dataHoraRepresentanteCIA: '', dataHoraEntregue: '' });
+                setFormData({ cia: '', dataHoraPuxado: '', dataHoraRecebido: '' });
               }}
               className="w-full md:w-[250px] h-10 bg-[#0f172a] hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group shadow-lg shadow-indigo-100/50"
             >
@@ -160,7 +150,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     {formatDisplayDate(m.dataHoraEntregue)}
                   </td>
                   <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">{m.turno}</td>
-                  <td className="py-3 px-5">
+                  <td className="py-3 px-5 text-right">
                     <button 
                       onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -192,7 +182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <button onClick={() => { openHistory(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest"><Search size={14} className="text-slate-400"/> Detalhes Log</button>
               <button onClick={() => { onAction('entregar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest"><CheckSquare size={14} className="text-emerald-400"/> Concluir Auditoria</button>
               <button onClick={() => { onAction('anular', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-widest"><Undo2 size={14} className="text-amber-400"/> Reverter Status</button>
-              <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest"><Edit3 size={14} className="text-blue-400"/> Editar Dados</button>
+              <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest"><Edit3 size={14} className="text-blue-400"/> Editar / Monitoramento</button>
               <div className="h-[1px] bg-slate-100 my-1" />
               <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest"><XCircle size={14} className="text-red-400"/> Cancelar Item</button>
             </div>

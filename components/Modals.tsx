@@ -3,8 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Manifesto, Funcionario } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-// Added Database to the import list from lucide-react to fix the reference error on line 260
-import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database } from 'lucide-react';
+import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database, ClipboardEdit } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface EditModalProps {
@@ -19,36 +18,80 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const handleSave = () => {
-    if (justificativa.length < 5) { setErrorMsg("Justificativa obrigatória."); return; }
-    onSave({ id: data.id, usuario: data.usuario, justificativa, cia: formData.cia });
+    if (justificativa.length < 5) { setErrorMsg("Justificativa obrigatória (mín. 5 caracteres)."); return; }
+    onSave({ 
+      id: data.id, 
+      usuario: data.usuario, 
+      justificativa, 
+      cia: formData.cia,
+      dataHoraRepresentanteCIA: formData.dataHoraRepresentanteCIA,
+      dataHoraEntregue: formData.dataHoraEntregue,
+      dataHoraPuxado: formData.dataHoraPuxado,
+      dataHoraRecebido: formData.dataHoraRecebido
+    });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white w-full max-w-md border border-zinc-300 shadow-2xl flex flex-col">
-        <div className="bg-zinc-900 text-white p-3 text-[11px] font-bold uppercase tracking-widest">
-          Editar Registro: {data.id}
+    <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+      <div className="bg-white w-full max-w-xl border-2 border-slate-900 shadow-2xl flex flex-col">
+        <div className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase tracking-widest flex justify-between items-center">
+          <div className="flex items-center gap-3">
+             <ClipboardEdit size={16} className="text-indigo-400" />
+             <span>EDITAR MONITORAMENTO: {data.id}</span>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={18} /></button>
         </div>
-        <div className="p-4 flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[9px] font-bold text-zinc-400 uppercase">Companhia</label>
+
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Companhia</label>
               <CustomSelect value={formData.cia} onChange={v => setFormData({...formData, cia: v})} />
             </div>
-            <div>
-              <label className="text-[9px] font-bold text-zinc-400 uppercase">Status</label>
-              <div className="h-9 px-2 bg-zinc-50 border border-zinc-200 flex items-center text-xs font-bold text-zinc-500">{data.status}</div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Status Atual</label>
+              <div className="h-10 px-3 bg-slate-50 border-2 border-slate-100 flex items-center text-[10px] font-black text-slate-400 uppercase">{data.status}</div>
             </div>
           </div>
-          <div>
-            <label className="text-[9px] font-bold text-zinc-400 uppercase">Justificativa da Alteração</label>
-            <textarea value={justificativa} onChange={e => setJustificativa(e.target.value)} className="w-full h-20 p-2 border border-zinc-300 text-xs outline-none focus:border-zinc-900 resize-none" />
+
+          <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-6">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Puxado</label>
+              <CustomDateTimePicker value={formData.dataHoraPuxado || ''} onChange={v => setFormData({...formData, dataHoraPuxado: v})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Recebido</label>
+              <CustomDateTimePicker value={formData.dataHoraRecebido || ''} onChange={v => setFormData({...formData, dataHoraRecebido: v})} />
+            </div>
           </div>
-          {errorMsg && <p className="text-[10px] font-bold text-red-600">{errorMsg}</p>}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">Representante CIA</label>
+              <CustomDateTimePicker value={formData.dataHoraRepresentanteCIA || ''} onChange={v => setFormData({...formData, dataHoraRepresentanteCIA: v})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Manifesto Entregue</label>
+              <CustomDateTimePicker value={formData.dataHoraEntregue || ''} onChange={v => setFormData({...formData, dataHoraEntregue: v})} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5 border-t border-slate-100 pt-6">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Justificativa da Alteração</label>
+            <textarea 
+              value={justificativa} 
+              onChange={e => setJustificativa(e.target.value)} 
+              placeholder="Descreva o motivo da alteração manual..."
+              className="w-full h-20 p-3 bg-slate-50 border-2 border-slate-200 text-xs font-bold outline-none focus:border-slate-900 focus:bg-white transition-all resize-none" 
+            />
+          </div>
+
+          {errorMsg && <p className="text-[10px] font-black text-red-600 uppercase animate-pulse">{errorMsg}</p>}
         </div>
-        <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex gap-2">
-          <button onClick={onClose} className="flex-1 h-9 border border-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-100 transition-colors">Cancelar</button>
-          <button onClick={handleSave} className="flex-1 h-9 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-black transition-colors">Confirmar Edição</button>
+
+        <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4">
+          <button onClick={onClose} className="flex-1 h-12 border-2 border-slate-300 text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all text-slate-500">Cancelar</button>
+          <button onClick={handleSave} className="flex-1 h-12 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg">Confirmar Edição</button>
         </div>
       </div>
     </div>
@@ -121,9 +164,7 @@ export const AssignResponsibilityModal: React.FC<{
             </div>
             <h3 className="text-[12px] font-black uppercase tracking-[0.2em]">Atribuir Responsável</h3>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors">
-            <X size={20} />
-          </button>
+          <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={20} /></button>
         </div>
 
         <div className="p-8 space-y-6">
@@ -205,12 +246,7 @@ export const AssignResponsibilityModal: React.FC<{
         </div>
 
         <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4 mt-auto">
-          <button 
-            onClick={onClose} 
-            className="flex-1 h-12 border-2 border-slate-300 text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all text-slate-500"
-          >
-            Voltar
-          </button>
+          <button onClick={onClose} className="flex-1 h-12 border-2 border-slate-300 text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all text-slate-500">Voltar</button>
           <button 
             onClick={handleConfirm} 
             disabled={!selected}

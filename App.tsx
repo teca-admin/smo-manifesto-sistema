@@ -110,6 +110,40 @@ function App() {
     } catch (err: any) { showAlert('error', err.message); } finally { setLoadingMsg(null); }
   };
 
+  const handleSaveEdit = async (data: any) => {
+    setLoadingMsg("Salvando Alterações...");
+    try {
+      const user = currentUser?.Nome_Completo || "Sistema";
+      const { error } = await supabase.from('SMO_Sistema').update({
+        CIA: data.cia,
+        Manifesto_Puxado: data.dataHoraPuxado,
+        Manifesto_Recebido: data.dataHoraRecebido,
+        Representante_CIA: data.dataHoraRepresentanteCIA,
+        Manifesto_Entregue: data.dataHoraEntregue,
+        "Carimbo_Data/HR": getCurrentTimestampBR(),
+        "Usuario_Ação": user
+      }).eq('ID_Manifesto', data.id);
+
+      if (error) throw error;
+
+      await supabase.from('SMO_Operacional').insert({ 
+        ID_Manifesto: data.id, 
+        "Ação": "Edição de Monitoramento", 
+        Usuario: user, 
+        Justificativa: data.justificativa,
+        "Created_At_BR": getCurrentTimestampBR() 
+      });
+
+      showAlert('success', 'Monitoramento Atualizado');
+      setEditingId(null);
+      fetchManifestos();
+    } catch (err: any) {
+      showAlert('error', err.message);
+    } finally {
+      setLoadingMsg(null);
+    }
+  };
+
   if (!isLoggedIn) return <LoginScreen onLoginSuccess={(u) => { setCurrentUser(u); setIsLoggedIn(true); }} loading={false} setLoading={() => {}} />;
 
   return (
@@ -181,8 +215,6 @@ function App() {
                   CIA: d.cia, 
                   Manifesto_Puxado: d.dataHoraPuxado, 
                   Manifesto_Recebido: d.dataHoraRecebido,
-                  Representante_CIA: d.dataHoraRepresentanteCIA, // Campo Representante
-                  Manifesto_Entregue: d.dataHoraEntregue,     // Campo Entrega
                   Status: "Manifesto Recebido", 
                   Turno: turno, 
                   "Carimbo_Data/HR": getCurrentTimestampBR(), 
@@ -215,7 +247,13 @@ function App() {
 
       <PerformanceMonitor isLoggedIn={isLoggedIn} currentUser={currentUser} manifestos={manifestos} />
 
-      {editingId && <EditModal data={manifestos.find(m => m.id === editingId)!} onClose={() => setEditingId(null)} onSave={() => {}} />}
+      {editingId && (
+        <EditModal 
+          data={manifestos.find(m => m.id === editingId)!} 
+          onClose={() => setEditingId(null)} 
+          onSave={handleSaveEdit} 
+        />
+      )}
       {viewingHistoryId && <HistoryModal data={manifestos.find(m => m.id === viewingHistoryId)!} onClose={() => setViewingHistoryId(null)} />}
       {cancellationId && <CancellationModal onConfirm={() => updateStatus(cancellationId, 'Manifesto Cancelado')} onClose={() => setCancellationId(null)} />}
       {anularId && <AnularModal onConfirm={() => updateStatus(anularId, 'Manifesto Recebido')} onClose={() => setAnularId(null)} />}
