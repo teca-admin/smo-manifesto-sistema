@@ -39,7 +39,6 @@ function App() {
     window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'logoff' } }));
     
     // Limpa estados de autenticação e UI
-    // Remover o reload evita o erro de "arquivo não encontrado" em ambientes de sandbox/preview
     setIsLoggedIn(false);
     setCurrentUser(null);
     setActiveTab('sistema');
@@ -280,15 +279,10 @@ function App() {
               onAction={(act, id) => {
                 if (act === 'entregar') updateStatus(id, 'Manifesto Entregue');
                 else if (act === 'cancelar') {
-                  setLoadingMsg("Cancelando...");
-                  updateStatus(id, 'Manifesto Cancelado');
-                  window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'cancelar' } }));
-                  setCancellationId(null);
+                  // Ao clicar em cancelar, apenas abre o modal de confirmação
+                  setCancellationId(id);
                 }
                 else if (act === 'anular') {
-                  setLoadingMsg("Anulando...");
-                  updateStatus(id, 'Manifesto Recebido');
-                  window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'anulacao' } }));
                   setAnularId(id);
                 }
               }}

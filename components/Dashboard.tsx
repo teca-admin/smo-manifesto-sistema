@@ -74,7 +74,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="bg-white border-2 border-slate-200 panel-shadow">
         <div className="bg-slate-50 px-5 py-2.5 border-b-2 border-slate-200 flex items-center justify-between">
           <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
-            <Plus size={14} className="text-indigo-600" /> Registro de Novo Manifesto
+            <span className="flex items-center justify-center w-5 h-5 bg-indigo-600 text-white rounded-sm"><Plus size={12} /></span>
+            Registro de Novo Manifesto
           </h3>
           <span className="text-[9px] font-bold text-slate-400 uppercase">Input Terminal v2.5</span>
         </div>
@@ -209,10 +210,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
                  <p className="text-[8px] font-black text-slate-400 uppercase">Ações Rápidas</p>
               </div>
               <button onClick={() => { openHistory(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Search size={14} className="text-slate-400"/> Detalhes / Log</button>
-              <button onClick={() => { onAction('entregar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest transition-colors"><CheckSquare size={14} className="text-emerald-400"/> Concluir Auditoria</button>
+              <button 
+                onClick={() => { 
+                  const selectedM = manifestos.find(m => m.id === menuOpenId);
+                  const hasRepr = selectedM?.dataHoraRepresentanteCIA && selectedM.dataHoraRepresentanteCIA !== '---' && selectedM.dataHoraRepresentanteCIA !== '';
+                  
+                  if (!hasRepr) {
+                    onShowAlert('error', 'Representante CIA Obrigatório para Entrega');
+                  } else {
+                    onAction('entregar', menuOpenId);
+                    setMenuOpenId(null);
+                  }
+                }} 
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest transition-colors"
+              >
+                <CheckSquare size={14} className="text-emerald-400"/> ENTREGAR MANIFESTO
+              </button>
               <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Edit3 size={14} className="text-blue-400"/> Editar</button>
               <div className="h-[1px] bg-slate-100 my-1" />
-              <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest transition-colors"><XCircle size={14} className="text-red-400"/> Cancelar Item</button>
+              <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest transition-colors"><XCircle size={14} className="text-red-400"/> CANCELAR MANIFESTO</button>
             </div>
          </div>, document.body
       )}

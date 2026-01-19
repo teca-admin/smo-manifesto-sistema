@@ -429,11 +429,14 @@ export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = 
 export const CancellationModal: React.FC<{ onConfirm: () => void, onClose: () => void }> = ({ onConfirm, onClose }) => (
   <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
     <div className="bg-white w-full max-w-xs border-t-4 border-red-600 shadow-2xl p-6 flex flex-col items-center">
-      <h3 className="text-sm font-bold text-zinc-900 mb-2">Confirmar Cancelamento?</h3>
-      <p className="text-[10px] text-zinc-500 text-center mb-6">Esta ação é irreversível e será registrada no log de auditoria.</p>
+      <div className="p-3 bg-red-100 text-red-600 rounded-full mb-4">
+         <X size={24} />
+      </div>
+      <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 mb-2">CANCELAR MANIFESTO?</h3>
+      <p className="text-[10px] font-bold text-zinc-500 text-center mb-6 uppercase tracking-tighter">Esta ação é irreversível e o item deixará de ser monitorado pela base ativa.</p>
       <div className="flex gap-2 w-full">
-        <button onClick={onClose} className="flex-1 h-9 border border-zinc-300 text-[10px] font-bold uppercase">Voltar</button>
-        <button onClick={onConfirm} className="flex-1 h-9 bg-red-600 text-white text-[10px] font-bold uppercase">Confirmar</button>
+        <button onClick={onClose} className="flex-1 h-10 border-2 border-zinc-200 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:bg-zinc-50 transition-all">Sair</button>
+        <button onClick={onConfirm} className="flex-1 h-10 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg">Confirmar</button>
       </div>
     </div>
   </div>
