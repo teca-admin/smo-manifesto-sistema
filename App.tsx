@@ -35,10 +35,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    // Dispara evento para o PerformanceMonitor registrar o logoff antes de sair
     window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'logoff' } }));
-    
-    // Limpa estados de autenticação e UI
     setIsLoggedIn(false);
     setCurrentUser(null);
     setActiveTab('sistema');
@@ -81,7 +78,7 @@ function App() {
 
   const fetchManifestos = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from('SMO_Sistema').select('*').order('id', { ascending: false }).limit(100);
+      const { data, error } = await supabase.from('SMO_Sistema').select('*').order('id', { ascending: false }).limit(200);
       if (error) throw error;
       if (data) {
         setManifestos(data.map((item: SMO_Sistema_DB) => ({
@@ -119,14 +116,37 @@ function App() {
     setLoadingMsg("Processando...");
     try {
       const user = currentUser?.Nome_Completo || "Sistema";
-      const { error } = await supabase.from('SMO_Sistema').update({ 
-        Status: status, "Carimbo_Data/HR": getCurrentTimestampBR(), "Usuario_Ação": user, ...fields 
-      }).eq('ID_Manifesto', id);
+      const now = getCurrentTimestampBR();
+      
+      // Se for entrega, garantir o preenchimento da coluna específica
+      const updateData = { 
+        Status: status, 
+        "Carimbo_Data/HR": now, 
+        "Usuario_Ação": user, 
+        ...fields 
+      };
+      
+      if (status === 'Manifesto Entregue') {
+        updateData.Manifesto_Entregue = now;
+      }
+
+      const { error } = await supabase.from('SMO_Sistema').update(updateData).eq('ID_Manifesto', id);
       if (error) throw error;
-      await supabase.from('SMO_Operacional').insert({ ID_Manifesto: id, "Ação": status, Usuario: user, "Created_At_BR": getCurrentTimestampBR() });
+      
+      await supabase.from('SMO_Operacional').insert({ 
+        ID_Manifesto: id, 
+        "Ação": status, 
+        Usuario: user, 
+        "Created_At_BR": now 
+      });
+      
       showAlert('success', `Status: ${status}`);
       fetchManifestos();
-    } catch (err: any) { showAlert('error', err.message); } finally { setLoadingMsg(null); }
+    } catch (err: any) { 
+      showAlert('error', err.message); 
+    } finally { 
+      setLoadingMsg(null); 
+    }
   };
 
   const handleSaveEdit = async (data: any) => {
@@ -278,13 +298,8 @@ function App() {
               }}
               onAction={(act, id) => {
                 if (act === 'entregar') updateStatus(id, 'Manifesto Entregue');
-                else if (act === 'cancelar') {
-                  // Ao clicar em cancelar, apenas abre o modal de confirmação
-                  setCancellationId(id);
-                }
-                else if (act === 'anular') {
-                  setAnularId(id);
-                }
+                else if (act === 'cancelar') setCancellationId(id);
+                else if (act === 'anular') setAnularId(id);
               }}
               openHistory={setViewingHistoryId}
               openEdit={setEditingId}
