@@ -24,18 +24,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
 
+  const formatDisplayDate = (isoStr: string) => {
+    if (!isoStr || isoStr === '---') return '---';
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return isoStr;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch (e) {
+      return isoStr;
+    }
+  };
+
   const getStatusClass = (status: string) => {
-    const s = status?.toLowerCase() || '';
-    if (s.includes('cancelado')) return 'bg-slate-100 text-slate-500 border-slate-200';
-    if (s.includes('recebido')) return 'bg-blue-50 text-blue-600 border-blue-200';
-    if (s.includes('iniciado')) return 'bg-amber-50 text-amber-600 border-amber-200';
-    if (s.includes('entregue')) return 'bg-emerald-50 text-emerald-600 border-emerald-200';
-    return 'bg-indigo-50 text-indigo-600 border-indigo-200';
+    const s = status || '';
+    switch (s) {
+      case 'Manifesto Recebido':
+        return 'bg-blue-50 text-blue-600 border-blue-200';
+      case 'Manifesto Iniciado':
+        return 'bg-amber-50 text-amber-600 border-amber-200';
+      case 'Manifesto Finalizado':
+        return 'bg-emerald-50 text-emerald-600 border-emerald-200';
+      case 'Manifesto Entregue':
+        return 'bg-slate-100 text-slate-500 border-slate-200 opacity-75';
+      case 'Manifesto Cancelado':
+        return 'bg-red-50 text-red-600 border-red-200';
+      default:
+        return 'bg-indigo-50 text-indigo-600 border-indigo-200';
+    }
   };
 
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
-      {/* PAINEL DE ENTRADA INDUSTRIAL */}
       <div className="bg-white border-2 border-slate-200 panel-shadow">
         <div className="bg-slate-50 px-5 py-2.5 border-b-2 border-slate-200 flex items-center justify-between">
           <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -69,7 +93,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* PAINEL DE DADOS ESTILO ERP */}
       <div className="bg-white border-2 border-slate-200 panel-shadow overflow-hidden">
         <div className="bg-slate-50 px-5 py-3 border-b-2 border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -89,22 +112,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-100/50 border-b border-slate-200">
-                {['ID Operacional', 'Status Atual', 'Companhia', 'Turno', 'Auditoria'].map(h => (
-                  <th key={h} className="text-left py-3 px-5 text-[9px] font-black text-slate-400 uppercase tracking-wider">{h}</th>
+                {['ID Operacional', 'Status Atual', 'Companhia', 'Manifesto Puxado', 'Manifesto Recebido', 'Turno', 'Auditoria'].map(h => (
+                  <th key={h} className="text-left py-3 px-5 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {manifestos.map(m => (
                 <tr key={m.id} className="group hover:bg-indigo-50/40 transition-colors">
-                  <td className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter">{m.id}</td>
+                  <td className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap">{m.id}</td>
                   <td className="py-3 px-5">
-                    <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight ${getStatusClass(m.status)}`}>
+                    <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight whitespace-nowrap ${getStatusClass(m.status)}`}>
                       {m.status}
                     </span>
                   </td>
-                  <td className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter">{m.cia}</td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase">{m.turno}</td>
+                  <td className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter whitespace-nowrap">{m.cia}</td>
+                  <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
+                    {formatDisplayDate(m.dataHoraPuxado)}
+                  </td>
+                  <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
+                    {formatDisplayDate(m.dataHoraRecebido)}
+                  </td>
+                  <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">{m.turno}</td>
                   <td className="py-3 px-5">
                     <button 
                       onClick={(e) => {

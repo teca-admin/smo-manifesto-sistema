@@ -10,6 +10,7 @@ export interface Manifesto {
   carimboDataHR?: string;
   usuarioOperacao?: string;
   usuarioAcao?: string;
+  usuarioResponsavel?: string; // Novo campo para o responsável atribuído
   
   dataHoraIniciado?: string;
   dataHoraDisponivel?: string;

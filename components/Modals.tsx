@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Manifesto } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
+import { UserPlus } from 'lucide-react';
 
 interface EditModalProps {
   data: Manifesto;
@@ -48,6 +49,57 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
         <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex gap-2">
           <button onClick={onClose} className="flex-1 h-9 border border-zinc-300 text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-100 transition-colors">Cancelar</button>
           <button onClick={handleSave} className="flex-1 h-9 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-black transition-colors">Confirmar Edição</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const AssignResponsibilityModal: React.FC<{ 
+  manifestoId: string, 
+  onConfirm: (name: string) => void, 
+  onClose: () => void 
+}> = ({ manifestoId, onConfirm, onClose }) => {
+  const [name, setName] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleConfirm = () => {
+    if (!name.trim()) {
+      setError(true);
+      return;
+    }
+    onConfirm(name.trim());
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
+      <div className="bg-white w-full max-w-sm border-2 border-slate-800 shadow-2xl flex flex-col">
+        <div className="bg-slate-900 text-white p-4 flex items-center gap-3">
+          <UserPlus size={18} className="text-indigo-400" />
+          <h3 className="text-[11px] font-black uppercase tracking-widest">Atribuir Responsável</h3>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Alvo</label>
+            <div className="h-10 px-3 bg-slate-50 border border-slate-200 flex items-center text-xs font-bold text-slate-400 font-mono-tech">{manifestoId}</div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Nome do Responsável</label>
+            <input 
+              autoFocus
+              type="text" 
+              value={name}
+              onChange={(e) => { setName(e.target.value); setError(false); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
+              placeholder="DIGITE O NOME COMPLETO"
+              className={`w-full h-10 px-3 bg-white border-2 text-xs font-bold uppercase tracking-tight outline-none transition-all ${error ? 'border-red-500 bg-red-50' : 'border-slate-200 focus:border-indigo-600'}`}
+            />
+            {error && <p className="text-[9px] font-bold text-red-600 uppercase">Campo Obrigatório</p>}
+          </div>
+        </div>
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex gap-3">
+          <button onClick={onClose} className="flex-1 h-10 border-2 border-slate-300 text-[10px] font-black uppercase tracking-widest hover:bg-white transition-colors">Cancelar</button>
+          <button onClick={handleConfirm} className="flex-1 h-10 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100">Atribuir Puxe</button>
         </div>
       </div>
     </div>

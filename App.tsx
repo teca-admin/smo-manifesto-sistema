@@ -3,10 +3,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { OperationalDashboard } from './components/OperationalDashboard';
-import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal } from './components/Modals';
+import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal, AssignResponsibilityModal } from './components/Modals';
 import { Manifesto, User, SMO_Sistema_DB } from './types';
 import { supabase } from './supabaseClient';
-import { LayoutGrid, Truck, LogOut, Terminal, Activity } from 'lucide-react';
+import { LayoutGrid, Plane, LogOut, Terminal, Activity } from 'lucide-react';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 
 function App() {
@@ -20,6 +20,7 @@ function App() {
   const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
   const [cancellationId, setCancellationId] = useState<string | null>(null);
   const [anularId, setAnularId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
   
@@ -75,6 +76,7 @@ function App() {
           turno: item.Turno,
           carimboDataHR: item["Carimbo_Data/HR"],
           usuarioAcao: item["Usuario_Ação"],
+          usuarioResponsavel: item["Usuario_Operação"], // Mapeando o campo responsável
           dataHoraIniciado: item.Manifesto_Iniciado,
           dataHoraDisponivel: item.Manifesto_Disponivel,
           dataHoraConferencia: item["Manifesto_em_Conferência"],
@@ -130,14 +132,14 @@ function App() {
                 className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'sistema' ? 'border-indigo-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
                 <LayoutGrid size={14} className={activeTab === 'sistema' ? 'text-indigo-400' : 'text-slate-500'} />
-                Auditoria CIA
+                Cadastro de Manifesto
               </button>
               <button 
                 onClick={() => setActiveTab('operacional')} 
                 className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'operacional' ? 'border-red-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
-                <Truck size={14} className={activeTab === 'operacional' ? 'text-red-400' : 'text-slate-500'} />
-                Pátio WFS
+                <Plane size={14} className={activeTab === 'operacional' ? 'text-red-400' : 'text-slate-500'} />
+                Puxe de Manifesto
               </button>
             </nav>
           </div>
@@ -199,7 +201,12 @@ function App() {
               nextId={nextId}
             />
           ) : (
-            <OperationalDashboard manifestos={manifestos} onAction={updateStatus} />
+            <OperationalDashboard 
+              manifestos={manifestos} 
+              onAction={updateStatus} 
+              currentUser={currentUser!} 
+              onOpenAssign={setAssignId => setAssigningId(setAssignId)}
+            />
           )}
         </div>
       </main>
@@ -210,6 +217,16 @@ function App() {
       {viewingHistoryId && <HistoryModal data={manifestos.find(m => m.id === viewingHistoryId)!} onClose={() => setViewingHistoryId(null)} />}
       {cancellationId && <CancellationModal onConfirm={() => updateStatus(cancellationId, 'Manifesto Cancelado')} onClose={() => setCancellationId(null)} />}
       {anularId && <AnularModal onConfirm={() => updateStatus(anularId, 'Manifesto Recebido')} onClose={() => setAnularId(null)} />}
+      {assigningId && (
+        <AssignResponsibilityModal 
+          manifestoId={assigningId} 
+          onConfirm={(name) => {
+            updateStatus(assigningId, 'Manifesto Recebido', { "Usuario_Operação": name });
+            setAssigningId(null);
+          }} 
+          onClose={() => setAssigningId(null)} 
+        />
+      )}
       {loadingMsg && <LoadingOverlay msg={loadingMsg} />}
       {alert && <AlertToast type={alert.type} msg={alert.msg} />}
     </div>
