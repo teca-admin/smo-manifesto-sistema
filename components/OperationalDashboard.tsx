@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Manifesto, User, Funcionario } from '../types';
-import { Play, CheckCircle2, Clock, Plane, ShieldAlert, UserCheck, UserPlus, Search, Loader2, LogOut, ArrowRight, User as UserIcon, Box, ListFilter } from 'lucide-react';
+import { Play, CheckCircle2, Clock, Plane, ShieldAlert, UserCheck, UserPlus, UserMinus, Search, Loader2, LogOut, ArrowRight, User as UserIcon, Box, ListFilter } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface OperationalDashboardProps {
@@ -228,12 +228,21 @@ export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ mani
 
                    <div className="flex gap-3 w-full md:w-auto">
                       {m.status === 'Manifesto Recebido' && (
-                        <button 
-                          onClick={() => onAction(m.id, 'Manifesto Iniciado', { Manifesto_Iniciado: new Date().toLocaleString('pt-BR') })}
-                          className="flex-1 md:flex-none h-14 px-8 bg-red-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-900 transition-all shadow-lg shadow-red-100"
-                        >
-                          <Play size={18} className="fill-current" /> Iniciar
-                        </button>
+                        <>
+                          <button 
+                            onClick={() => onAction(m.id, 'Manifesto Recebido', { "Usuario_Operação": null })}
+                            className="h-14 px-4 bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 border-2 border-slate-200 hover:border-red-200 transition-all flex items-center justify-center gap-2 group"
+                            title="Remover Atribuição"
+                          >
+                            <UserMinus size={18} />
+                          </button>
+                          <button 
+                            onClick={() => onAction(m.id, 'Manifesto Iniciado', { Manifesto_Iniciado: new Date().toLocaleString('pt-BR') })}
+                            className="flex-1 md:flex-none h-14 px-8 bg-red-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-900 transition-all shadow-lg shadow-red-100"
+                          >
+                            <Play size={18} className="fill-current" /> Iniciar
+                          </button>
+                        </>
                       )}
 
                       {m.status === 'Manifesto Iniciado' && (

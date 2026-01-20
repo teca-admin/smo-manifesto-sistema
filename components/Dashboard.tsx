@@ -68,80 +68,94 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  const renderTable = (data: Manifesto[], isHistory: boolean = false) => (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-slate-100/50 border-b border-slate-200">
-            {['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Ação'].map((h, idx, arr) => (
-              <th key={h} className={`${idx === arr.length - 1 ? 'text-right' : 'text-left'} py-3 px-5 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap`}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {data.length === 0 ? (
-            <tr>
-              <td colSpan={9} className="py-12 text-center text-[10px] font-bold text-slate-400 uppercase italic">
-                {isHistory ? "Nenhum histórico registrado hoje." : "Nenhum manifesto em andamento no momento."}
-              </td>
-            </tr>
-          ) : (
-            data.map(m => {
-              const canFillRepr = m.status === 'Manifesto Finalizado';
-              const hasReprDate = m.dataHoraRepresentanteCIA && m.dataHoraRepresentanteCIA !== '---' && m.dataHoraRepresentanteCIA !== '';
+  const renderTable = (data: Manifesto[], isHistory: boolean = false) => {
+    // Escala Matemática de Larguras Ajustada (Total 100%)
+    // Aumento da coluna Ação para 7% para evitar corte do texto "AÇÃO"
+    const columnWidths = ['13%', '15%', '9%', '12%', '12%', '12%', '12%', '8%', '7%'];
+    const headers = ['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Ação'];
 
-              return (
-                <tr key={m.id} className={`group hover:bg-indigo-50/40 transition-colors ${isHistory ? 'opacity-60 grayscale-[0.5]' : ''}`}>
-                  <td className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap">{m.id}</td>
-                  <td className="py-3 px-5">
-                    <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight whitespace-nowrap ${getStatusClass(m.status)}`}>
-                      {m.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter whitespace-nowrap">{m.cia}</td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
-                    {formatDisplayDate(m.dataHoraPuxado)}
-                  </td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap">
-                    {formatDisplayDate(m.dataHoraRecebido)}
-                  </td>
-                  <td 
-                    onClick={() => !isHistory && canFillRepr && onOpenReprFill(m.id)}
-                    className={`py-3 px-5 transition-all ${!isHistory && canFillRepr ? 'cursor-pointer hover:bg-indigo-100/60' : ''}`}
-                  >
-                    <div className={`flex items-center gap-1.5 text-[10px] font-mono-tech tracking-tight whitespace-nowrap ${
-                      !isHistory && canFillRepr 
-                        ? 'text-indigo-600 font-black' 
-                        : 'text-slate-500 font-bold'
-                    }`}>
-                      {formatDisplayDate(m.dataHoraRepresentanteCIA)}
-                      {!isHistory && canFillRepr && !hasReprDate && <Edit size={10} className="text-indigo-400 animate-pulse" />}
-                    </div>
-                  </td>
-                  <td className={`py-3 px-5 text-[10px] font-bold font-mono-tech tracking-tight whitespace-nowrap ${m.status === 'Manifesto Entregue' ? 'text-emerald-600' : 'text-slate-500'}`}>
-                    {formatDisplayDate(m.dataHoraEntregue)}
-                  </td>
-                  <td className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">{m.turno}</td>
-                  <td className="py-3 px-5 text-right">
-                    <button 
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setMenuPos({ top: rect.bottom + window.scrollY, left: rect.left });
-                        setMenuOpenId(m.id);
-                      }} 
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-all border border-transparent hover:border-indigo-200"
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse table-fixed">
+          <thead>
+            <tr className="bg-slate-100/50 border-b border-slate-200">
+              {headers.map((h, idx, arr) => (
+                <th 
+                  key={h} 
+                  style={{ width: columnWidths[idx] }}
+                  className={`${idx === arr.length - 1 ? 'text-right' : 'text-left'} py-3 px-5 text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis`}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {data.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="py-12 text-center text-[10px] font-bold text-slate-400 uppercase italic">
+                  {isHistory ? "Nenhum histórico registrado hoje." : "Nenhum manifesto em andamento no momento."}
+                </td>
+              </tr>
+            ) : (
+              data.map(m => {
+                const canFillRepr = m.status === 'Manifesto Finalizado';
+                const hasReprDate = m.dataHoraRepresentanteCIA && m.dataHoraRepresentanteCIA !== '---' && m.dataHoraRepresentanteCIA !== '';
+
+                return (
+                  <tr key={m.id} className={`group hover:bg-indigo-50/40 transition-colors ${isHistory ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+                    <td style={{ width: columnWidths[0] }} className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap overflow-hidden text-ellipsis">{m.id}</td>
+                    <td style={{ width: columnWidths[1] }} className="py-3 px-5 whitespace-nowrap overflow-hidden">
+                      <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight inline-block ${getStatusClass(m.status)}`}>
+                        {m.status}
+                      </span>
+                    </td>
+                    <td style={{ width: columnWidths[2] }} className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter whitespace-nowrap overflow-hidden text-ellipsis">{m.cia}</td>
+                    <td style={{ width: columnWidths[3] }} className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                      {formatDisplayDate(m.dataHoraPuxado)}
+                    </td>
+                    <td style={{ width: columnWidths[4] }} className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
+                      {formatDisplayDate(m.dataHoraRecebido)}
+                    </td>
+                    <td 
+                      style={{ width: columnWidths[5] }}
+                      onClick={() => !isHistory && canFillRepr && onOpenReprFill(m.id)}
+                      className={`py-3 px-5 transition-all overflow-hidden text-ellipsis ${!isHistory && canFillRepr ? 'cursor-pointer hover:bg-indigo-100/60' : ''}`}
                     >
-                      <History size={16} />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
+                      <div className={`flex items-center gap-1.5 text-[10px] font-mono-tech tracking-tight whitespace-nowrap ${
+                        !isHistory && canFillRepr 
+                          ? 'text-indigo-600 font-black' 
+                          : 'text-slate-500 font-bold'
+                      }`}>
+                        {formatDisplayDate(m.dataHoraRepresentanteCIA)}
+                        {!isHistory && canFillRepr && !hasReprDate && <Edit size={10} className="text-indigo-400 animate-pulse" />}
+                      </div>
+                    </td>
+                    <td style={{ width: columnWidths[6] }} className={`py-3 px-5 text-[10px] font-bold font-mono-tech tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${m.status === 'Manifesto Entregue' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      {formatDisplayDate(m.dataHoraEntregue)}
+                    </td>
+                    <td style={{ width: columnWidths[7] }} className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis">{m.turno}</td>
+                    <td style={{ width: columnWidths[8] }} className="py-3 px-5 text-right">
+                      <button 
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setMenuPos({ top: rect.bottom + window.scrollY, left: rect.left });
+                          setMenuOpenId(m.id);
+                        }} 
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-all border border-transparent hover:border-indigo-200"
+                      >
+                        <History size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
