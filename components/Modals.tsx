@@ -1,10 +1,9 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Manifesto, Funcionario } from '../types';
+import { Manifesto, Funcionario, OperationalLog } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-// Added 'Plane' to the lucide-react import list
-import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database, ClipboardEdit, CheckCircle2, User as UserIcon, MapPin, Activity, Plane } from 'lucide-react';
+import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database, ClipboardEdit, CheckCircle2, User as UserIcon, MapPin, Activity, Plane, History, MessageSquareQuote } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface EditModalProps {
@@ -17,9 +16,46 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
   const [formData, setFormData] = React.useState({ ...data });
   const [justificativa, setJustificativa] = React.useState('');
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [logs, setLogs] = useState<OperationalLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  // Busca o histórico de justificativas especificamente para este modal
+  useEffect(() => {
+    const fetchEditHistory = async () => {
+      setLoadingLogs(true);
+      try {
+        const { data: logData, error } = await supabase
+          .from('SMO_Operacional')
+          .select('*')
+          .eq('ID_Manifesto', data.id)
+          .not('Justificativa', 'is', null) // Apenas logs que tenham justificativa (edições)
+          .order('id', { ascending: false });
+        
+        if (!error && logData) {
+          setLogs(logData.map(l => ({
+            id: l.id,
+            idManifesto: l.ID_Manifesto,
+            acao: l.Ação,
+            usuario: l.Usuario,
+            justificativa: l.Justificativa,
+            createdAtBR: l.Created_At_BR
+          })));
+        }
+      } catch (err) {
+        console.error("Erro ao buscar logs de edição:", err);
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+
+    fetchEditHistory();
+  }, [data.id]);
 
   const handleSave = () => {
-    if (justificativa.length < 5) { setErrorMsg("Justificativa obrigatória (mín. 5 caracteres)."); return; }
+    if (justificativa.trim().length < 5) { 
+      setErrorMsg("Justificativa obrigatória para auditoria (mín. 5 caracteres)."); 
+      return; 
+    }
     onSave({ 
       id: data.id, 
       usuario: data.usuario, 
@@ -34,8 +70,9 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-      <div className="bg-white w-full max-w-xl border-2 border-slate-900 shadow-2xl flex flex-col">
-        <div className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase tracking-widest flex justify-between items-center">
+      <div className="bg-white w-full max-w-2xl border-2 border-slate-900 shadow-2xl flex flex-col max-h-[90vh]">
+        {/* HEADER */}
+        <div className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase tracking-widest flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
              <ClipboardEdit size={16} className="text-indigo-400" />
              <span>EDITAR MONITORAMENTO: {data.id}</span>
@@ -43,7 +80,8 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
           <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={18} /></button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          {/* CAMPOS DE EDIÇÃO */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Companhia</label>
@@ -51,7 +89,9 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
             </div>
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Status Atual</label>
-              <div className="h-10 px-3 bg-slate-50 border-2 border-slate-100 flex items-center text-[10px] font-black text-slate-400 uppercase">{data.status}</div>
+              <div className="h-10 px-3 bg-slate-50 border-2 border-slate-100 flex items-center text-[10px] font-black text-slate-400 uppercase cursor-not-allowed">
+                {data.status}
+              </div>
             </div>
           </div>
 
@@ -66,33 +106,67 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">Representante CIA</label>
-              <CustomDateTimePicker value={formData.dataHoraRepresentanteCIA || ''} onChange={v => setFormData({...formData, dataHoraRepresentanteCIA: v})} />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Manifesto Entregue</label>
-              <CustomDateTimePicker value={formData.dataHoraEntregue || ''} onChange={v => setFormData({...formData, dataHoraEntregue: v})} />
-            </div>
-          </div>
-
           <div className="space-y-1.5 border-t border-slate-100 pt-6">
-            <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Justificativa da Alteração</label>
+            <label className="text-[9px] font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-2">
+              <MessageSquareQuote size={14} className="text-indigo-600" /> Nova Justificativa de Alteração
+            </label>
             <textarea 
               value={justificativa} 
-              onChange={e => setJustificativa(e.target.value)} 
-              placeholder="Descreva o motivo da alteração manual..."
-              className="w-full h-20 p-3 bg-slate-50 border-2 border-slate-200 text-xs font-bold outline-none focus:border-slate-900 focus:bg-white transition-all resize-none" 
+              onChange={e => {
+                setJustificativa(e.target.value);
+                if (errorMsg) setErrorMsg(null);
+              }} 
+              placeholder="Descreva detalhadamente o motivo desta alteração manual..."
+              className={`w-full h-24 p-3 bg-slate-50 border-2 text-xs font-bold outline-none transition-all resize-none placeholder:text-slate-300 ${errorMsg ? 'border-red-500 bg-red-50' : 'border-slate-200 focus:border-slate-900 focus:bg-white'}`} 
             />
+            {errorMsg && <p className="text-[9px] font-black text-red-600 uppercase italic animate-pulse">{errorMsg}</p>}
           </div>
 
-          {errorMsg && <p className="text-[10px] font-black text-red-600 uppercase animate-pulse">{errorMsg}</p>}
+          {/* HISTÓRICO DE LOGS - REGISTROS ANTERIORES */}
+          <div className="space-y-3 pt-4 border-t-2 border-slate-100">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <History size={14} /> Log de Alterações Manuais
+            </h4>
+            
+            <div className="bg-slate-50 border border-slate-200 p-2 max-h-48 overflow-y-auto custom-scrollbar">
+              {loadingLogs ? (
+                <div className="py-8 flex flex-col items-center justify-center text-slate-300 gap-2">
+                  <Loader2 size={20} className="animate-spin" />
+                  <span className="text-[9px] font-bold uppercase">Recuperando registros...</span>
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="py-8 text-center">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase italic">Nenhuma alteração manual registrada anteriormente.</span>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {logs.map(log => (
+                    <div key={log.id} className="bg-white border-l-4 border-indigo-500 p-3 shadow-sm">
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">
+                          {log.usuario}
+                        </span>
+                        <span className="text-[8px] font-bold text-slate-400 font-mono">
+                          {log.createdAtBR}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-700 leading-tight">
+                        {log.justificativa}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4">
+        {/* FOOTER */}
+        <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4 shrink-0">
           <button onClick={onClose} className="flex-1 h-12 border-2 border-slate-300 text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all text-slate-500">Cancelar</button>
-          <button onClick={handleSave} className="flex-1 h-12 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg">Confirmar Edição</button>
+          <button onClick={handleSave} className="flex-1 h-12 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg flex items-center justify-center gap-2">
+            Salvar Alterações
+          </button>
         </div>
       </div>
     </div>
@@ -417,7 +491,7 @@ export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = 
 
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
           <p className="text-[9px] font-bold text-slate-400 uppercase">Última Auditoria: <span className="font-black text-slate-600">{data.carimboDataHR || '---'}</span></p>
           <button onClick={onClose} className="h-10 px-8 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-md">Concluir Leitura</button>
         </div>
