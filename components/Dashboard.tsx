@@ -81,18 +81,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const handleOpenMenu = (e: React.MouseEvent, id: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const menuHeight = 220; 
+    const menuSafeHeight = 300; // Aumentado para 300px para garantir folga da barra de tarefas
     const viewportHeight = window.innerHeight;
     
-    // Calcula o espaço disponível abaixo e acima
+    // Se o espaço embaixo for menor que 300px, abre para cima
     const spaceBelow = viewportHeight - rect.bottom;
-    const shouldOpenUpward = spaceBelow < menuHeight && rect.top > menuHeight;
+    const shouldOpenUpward = spaceBelow < menuSafeHeight;
     
     setMenuPos({ 
-      // Usamos apenas as coordenadas do rect (viewport-relative) 
-      // porque o Portal já está em um container fixed inset-0
-      top: shouldOpenUpward ? rect.top - 8 : rect.bottom + 8, 
-      left: Math.max(8, rect.left - 180), // Garante que não saia da tela pela esquerda
+      // Reposiciona o ponto âncora com margem de segurança
+      top: shouldOpenUpward ? rect.top - 12 : rect.bottom + 12, 
+      left: Math.max(12, rect.left - 180),
       openUpward: shouldOpenUpward
     });
     setMenuOpenId(id);
@@ -383,7 +382,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Puxado</label>
-              <CustomDateTimePicker value={formData.dataHoraPuxado} onChange={v => setFormData({...formData, dataHoraPuxado: v})} />
+              <CustomSelect value={formData.dataHoraPuxado} onChange={v => setFormData({...formData, dataHoraPuxado: v})} />
             </div>
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Recebido</label>
@@ -468,7 +467,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                style={{ 
                   top: `${menuPos.top}px`, 
                   left: `${menuPos.left}px`,
-                  // Usamos transform apenas para subir o menu a partir do ponto âncora
                   transform: menuPos.openUpward ? 'translateY(-100%)' : 'none'
                }}
                onClick={e => e.stopPropagation()}

@@ -489,7 +489,8 @@ export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = 
 };
 
 export const CancellationModal: React.FC<{ onConfirm: () => void, onClose: () => void }> = ({ onConfirm, onClose }) => (
-  <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
+  // AJUSTE: items-start + pt-[15vh] para garantir que o modal nasça no topo da tela e não seja cortado pela barra de tarefas
+  <div className="fixed inset-0 bg-black/60 z-[10000] flex items-start justify-center p-4 pt-[15vh] animate-fadeIn">
     <div className="bg-white w-full max-w-xs border-t-4 border-red-600 shadow-2xl p-6 flex flex-col items-center">
       <div className="p-3 bg-red-100 text-red-600 rounded-full mb-4">
          <X size={24} />
