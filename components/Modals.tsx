@@ -504,19 +504,6 @@ export const CancellationModal: React.FC<{ onConfirm: () => void, onClose: () =>
   </div>
 );
 
-export const AnularModal: React.FC<{ onConfirm: () => void, onClose: () => void }> = ({ onConfirm, onClose }) => (
-  <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn">
-    <div className="bg-white w-full max-w-xs border-t-4 border-amber-500 shadow-2xl p-6 flex flex-col items-center">
-      <h3 className="text-sm font-bold text-zinc-900 mb-2">Anular Status Atual?</h3>
-      <p className="text-[10px] text-zinc-500 text-center mb-6">O manifesto retornará ao estado de "Recebido".</p>
-      <div className="flex gap-2 w-full">
-        <button onClick={onClose} className="flex-1 h-9 border border-zinc-300 text-[10px] font-bold uppercase">Voltar</button>
-        <button onClick={onConfirm} className="flex-1 h-9 bg-amber-500 text-white text-[10px] font-bold uppercase">Anular</button>
-      </div>
-    </div>
-  </div>
-);
-
 export const AlertToast: React.FC<{ type: 'success' | 'error', msg: string }> = ({ type, msg }) => (
   <div className={`fixed bottom-4 right-4 text-white px-4 py-3 shadow-2xl font-bold text-[10px] uppercase tracking-widest z-[10001] animate-slideInUp ${type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
     {msg}

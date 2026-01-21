@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Manifesto, User } from '../types';
@@ -250,7 +251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {renderTable(manifestosEmAndamento, false)}
       </div>
 
-      {/* ARQUIVO DE MANIFESTOS CONCLUÍDOS - COM EXPANDIR/RECOLHER NA BARRA */}
+      {/* ARQUIVO DE MANIFESTOS CONCLUÍDOS */}
       <div className="bg-white border-2 border-slate-200 panel-shadow overflow-hidden transition-all duration-300">
         <div 
           onClick={() => setShowHistory(!showHistory)}
@@ -285,7 +286,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         
         {showHistory && (
           <>
-            {/* CONTAINER COM DIMENSÃO PADRÃO E SCROLL INTERNO */}
             <div className="max-h-[440px] overflow-y-auto custom-scrollbar bg-slate-50/20 animate-fadeIn">
               {renderTable(filteredHistory, true)}
             </div>
@@ -332,7 +332,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <CheckSquare size={14} className="text-emerald-400"/> ENTREGAR MANIFESTO
                   </button>
                   <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Edit3 size={14} className="text-indigo-400"/> Editar Registro</button>
-                  <button onClick={() => { onAction('anular', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-widest transition-colors border-t border-slate-100"><Filter size={14} className="text-amber-400"/> Anular Status</button>
                   <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest transition-colors"><XCircle size={14} className="text-red-400"/> Cancelar Item</button>
                 </>
               )}

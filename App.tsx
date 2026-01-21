@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { OperationalDashboard } from './components/OperationalDashboard';
-import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AnularModal, AssignResponsibilityModal, ReprFillModal } from './components/Modals';
+import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AssignResponsibilityModal, ReprFillModal } from './components/Modals';
 import { Manifesto, User, SMO_Sistema_DB } from './types';
 import { supabase } from './supabaseClient';
 import { LayoutGrid, Plane, LogOut, Terminal, Activity } from 'lucide-react';
@@ -20,7 +20,6 @@ function App() {
   const [fillingReprId, setFillingReprId] = useState<string | null>(null);
   const [viewingHistoryId, setViewingHistoryId] = useState<string | null>(null);
   const [cancellationId, setCancellationId] = useState<string | null>(null);
-  const [anularId, setAnularId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
@@ -44,7 +43,6 @@ function App() {
     setFillingReprId(null);
     setViewingHistoryId(null);
     setCancellationId(null);
-    setAnularId(null);
     setAssigningId(null);
     setLoadingMsg(null);
   };
@@ -118,7 +116,6 @@ function App() {
       const user = currentUser?.Nome_Completo || "Sistema";
       const now = getCurrentTimestampBR();
       
-      // Se for entrega, garantir o preenchimento da coluna específica
       const updateData = { 
         Status: status, 
         "Carimbo_Data/HR": now, 
@@ -299,7 +296,6 @@ function App() {
               onAction={(act, id) => {
                 if (act === 'entregar') updateStatus(id, 'Manifesto Entregue');
                 else if (act === 'cancelar') setCancellationId(id);
-                else if (act === 'anular') setAnularId(id);
               }}
               openHistory={setViewingHistoryId}
               openEdit={setEditingId}
@@ -348,11 +344,6 @@ function App() {
         window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'cancelar' } }));
         setCancellationId(null);
       }} onClose={() => setCancellationId(null)} />}
-      {anularId && <AnularModal onConfirm={() => {
-        updateStatus(anularId, 'Manifesto Recebido');
-        window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'anulacao' } }));
-        setAnularId(null);
-      }} onClose={() => setAnularId(null)} />}
       {assigningId && (
         <AssignResponsibilityModal 
           manifestoId={assigningId} 
