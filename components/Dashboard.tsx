@@ -81,19 +81,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const handleOpenMenu = (e: React.MouseEvent, id: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const menuHeight = 250; // Altura estimada do menu para cálculo de colisão
+    const menuHeight = 220; 
     const viewportHeight = window.innerHeight;
     
-    // LOGICA DE POSICIONAMENTO INTELIGENTE
-    // Verifica se há espaço suficiente abaixo do botão
+    // Calcula o espaço disponível abaixo e acima
     const spaceBelow = viewportHeight - rect.bottom;
-    const shouldOpenUpward = spaceBelow < menuHeight;
+    const shouldOpenUpward = spaceBelow < menuHeight && rect.top > menuHeight;
     
     setMenuPos({ 
-      // Se abrir para cima, usa o topo do botão como referência para o translateY(-100%)
-      // Se abrir para baixo, usa a base do botão
-      top: shouldOpenUpward ? rect.top + window.scrollY - 4 : rect.bottom + window.scrollY + 4, 
-      left: rect.left + window.scrollX - 180, // Alinha o menu à direita do botão (menu tem ~220px)
+      // Usamos apenas as coordenadas do rect (viewport-relative) 
+      // porque o Portal já está em um container fixed inset-0
+      top: shouldOpenUpward ? rect.top - 8 : rect.bottom + 8, 
+      left: Math.max(8, rect.left - 180), // Garante que não saia da tela pela esquerda
       openUpward: shouldOpenUpward
     });
     setMenuOpenId(id);
@@ -465,11 +464,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {menuOpenId && createPortal(
          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpenId(null)}>
             <div 
-               className="absolute bg-white border-2 border-slate-800 shadow-2xl min-w-[220px] py-1.5 animate-fadeIn"
+               className="fixed bg-white border-2 border-slate-800 shadow-2xl min-w-[220px] py-1.5 animate-fadeIn"
                style={{ 
-                  top: menuPos.top, 
-                  left: menuPos.left,
-                  // Inverte o posicionamento usando transform quando for abrir para cima
+                  top: `${menuPos.top}px`, 
+                  left: `${menuPos.left}px`,
+                  // Usamos transform apenas para subir o menu a partir do ponto âncora
                   transform: menuPos.openUpward ? 'translateY(-100%)' : 'none'
                }}
                onClick={e => e.stopPropagation()}
