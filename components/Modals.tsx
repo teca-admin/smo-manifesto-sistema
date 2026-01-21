@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Manifesto, Funcionario, OperationalLog } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database, ClipboardEdit, CheckCircle2, User as UserIcon, MapPin, Activity, Plane, History, MessageSquareQuote } from 'lucide-react';
+import { UserPlus, Search, UserCheck, Loader2, X, Clock, Calendar, Database, ClipboardEdit, CheckCircle2, User as UserIcon, MapPin, Activity, Plane, History, MessageSquareQuote, FileText, UserCircle } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 interface EditModalProps {
@@ -16,40 +16,6 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
   const [formData, setFormData] = React.useState({ ...data });
   const [justificativa, setJustificativa] = React.useState('');
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [logs, setLogs] = useState<OperationalLog[]>([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-
-  // Busca o histórico de justificativas especificamente para este modal
-  useEffect(() => {
-    const fetchEditHistory = async () => {
-      setLoadingLogs(true);
-      try {
-        const { data: logData, error } = await supabase
-          .from('SMO_Operacional')
-          .select('*')
-          .eq('ID_Manifesto', data.id)
-          .not('Justificativa', 'is', null) // Apenas logs que tenham justificativa (edições)
-          .order('id', { ascending: false });
-        
-        if (!error && logData) {
-          setLogs(logData.map(l => ({
-            id: l.id,
-            idManifesto: l.ID_Manifesto,
-            acao: l.Ação,
-            usuario: l.Usuario,
-            justificativa: l.Justificativa,
-            createdAtBR: l.Created_At_BR
-          })));
-        }
-      } catch (err) {
-        console.error("Erro ao buscar logs de edição:", err);
-      } finally {
-        setLoadingLogs(false);
-      }
-    };
-
-    fetchEditHistory();
-  }, [data.id]);
 
   const handleSave = () => {
     if (justificativa.trim().length < 5) { 
@@ -70,8 +36,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-      <div className="bg-white w-full max-w-2xl border-2 border-slate-900 shadow-2xl flex flex-col max-h-[90vh]">
-        {/* HEADER */}
+      <div className="bg-white w-full max-w-xl border-2 border-slate-900 shadow-2xl flex flex-col">
         <div className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase tracking-widest flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
              <ClipboardEdit size={16} className="text-indigo-400" />
@@ -80,8 +45,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
           <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={18} /></button>
         </div>
 
-        <div className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
-          {/* CAMPOS DE EDIÇÃO */}
+        <div className="p-6 space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Companhia</label>
@@ -89,7 +53,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
             </div>
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Status Atual</label>
-              <div className="h-10 px-3 bg-slate-50 border-2 border-slate-100 flex items-center text-[10px] font-black text-slate-400 uppercase cursor-not-allowed">
+              <div className="h-10 px-3 bg-slate-50 border-2 border-slate-100 flex items-center text-[10px] font-black text-slate-400 uppercase">
                 {data.status}
               </div>
             </div>
@@ -108,7 +72,7 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
 
           <div className="space-y-1.5 border-t border-slate-100 pt-6">
             <label className="text-[9px] font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-2">
-              <MessageSquareQuote size={14} className="text-indigo-600" /> Nova Justificativa de Alteração
+              <MessageSquareQuote size={14} className="text-indigo-600" /> Justificativa da Alteração
             </label>
             <textarea 
               value={justificativa} 
@@ -116,57 +80,16 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
                 setJustificativa(e.target.value);
                 if (errorMsg) setErrorMsg(null);
               }} 
-              placeholder="Descreva detalhadamente o motivo desta alteração manual..."
-              className={`w-full h-24 p-3 bg-slate-50 border-2 text-xs font-bold outline-none transition-all resize-none placeholder:text-slate-300 ${errorMsg ? 'border-red-500 bg-red-50' : 'border-slate-200 focus:border-slate-900 focus:bg-white'}`} 
+              placeholder="Descreva o motivo desta alteração manual para o log de auditoria..."
+              className={`w-full h-24 p-3 bg-slate-50 border-2 text-xs font-bold outline-none transition-all resize-none ${errorMsg ? 'border-red-500 bg-red-50' : 'border-slate-200 focus:border-slate-900 focus:bg-white'}`} 
             />
-            {errorMsg && <p className="text-[9px] font-black text-red-600 uppercase italic animate-pulse">{errorMsg}</p>}
-          </div>
-
-          {/* HISTÓRICO DE LOGS - REGISTROS ANTERIORES */}
-          <div className="space-y-3 pt-4 border-t-2 border-slate-100">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-              <History size={14} /> Log de Alterações Manuais
-            </h4>
-            
-            <div className="bg-slate-50 border border-slate-200 p-2 max-h-48 overflow-y-auto custom-scrollbar">
-              {loadingLogs ? (
-                <div className="py-8 flex flex-col items-center justify-center text-slate-300 gap-2">
-                  <Loader2 size={20} className="animate-spin" />
-                  <span className="text-[9px] font-bold uppercase">Recuperando registros...</span>
-                </div>
-              ) : logs.length === 0 ? (
-                <div className="py-8 text-center">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase italic">Nenhuma alteração manual registrada anteriormente.</span>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {logs.map(log => (
-                    <div key={log.id} className="bg-white border-l-4 border-indigo-500 p-3 shadow-sm">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">
-                          {log.usuario}
-                        </span>
-                        <span className="text-[8px] font-bold text-slate-400 font-mono">
-                          {log.createdAtBR}
-                        </span>
-                      </div>
-                      <p className="text-[10px] font-bold text-slate-700 leading-tight">
-                        {log.justificativa}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {errorMsg && <p className="text-[9px] font-black text-red-600 uppercase italic">{errorMsg}</p>}
           </div>
         </div>
 
-        {/* FOOTER */}
-        <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4 shrink-0">
+        <div className="p-5 bg-slate-50 border-t-2 border-slate-100 flex gap-4">
           <button onClick={onClose} className="flex-1 h-12 border-2 border-slate-300 text-[11px] font-black uppercase tracking-widest hover:bg-white transition-all text-slate-500">Cancelar</button>
-          <button onClick={handleSave} className="flex-1 h-12 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg flex items-center justify-center gap-2">
-            Salvar Alterações
-          </button>
+          <button onClick={handleSave} className="flex-1 h-12 bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg">Salvar</button>
         </div>
       </div>
     </div>
@@ -384,6 +307,39 @@ export const LoadingOverlay: React.FC<{ msg: string }> = ({ msg }) => (
 );
 
 export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = ({ data, onClose }) => {
+  const [logs, setLogs] = useState<OperationalLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  useEffect(() => {
+    const fetchFullHistory = async () => {
+      setLoadingLogs(true);
+      try {
+        const { data: logData, error } = await supabase
+          .from('SMO_Operacional')
+          .select('*')
+          .eq('ID_Manifesto', data.id)
+          .order('id', { ascending: false });
+        
+        if (!error && logData) {
+          setLogs(logData.map(l => ({
+            id: l.id,
+            idManifesto: l.ID_Manifesto,
+            acao: l.Ação,
+            usuario: l.Usuario,
+            justificativa: l.Justificativa,
+            createdAtBR: l.Created_At_BR
+          })));
+        }
+      } catch (err) {
+        console.error("Erro ao buscar histórico:", err);
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+
+    fetchFullHistory();
+  }, [data.id]);
+
   const formatTime = (iso: string | undefined) => {
     if (!iso || iso === '---' || iso === '') return 'Pendente';
     try {
@@ -394,106 +350,138 @@ export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = 
   };
 
   const timelineSteps = [
-    { label: 'Manifesto Puxado', time: data.dataHoraPuxado, icon: Database, color: 'text-slate-400' },
-    { label: 'Manifesto Recebido', time: data.dataHoraRecebido, icon: MapPin, color: 'text-blue-500' },
-    { label: 'Início da Operação', time: data.dataHoraIniciado, icon: Activity, color: 'text-amber-500' },
-    { label: 'Operação Finalizada', time: data.dataHoraCompleto, icon: CheckCircle2, color: 'text-emerald-500' },
-    { label: 'Assinatura Representante', time: data.dataHoraRepresentanteCIA, icon: Clock, color: 'text-indigo-500' },
-    { label: 'Manifesto Entregue', time: data.dataHoraEntregue, icon: Plane, color: 'text-slate-800' }
+    { label: 'Manifesto Puxado', time: data.dataHoraPuxado, icon: Database },
+    { label: 'Manifesto Recebido', time: data.dataHoraRecebido, icon: MapPin },
+    { label: 'Início da Operação', time: data.dataHoraIniciado, icon: Activity },
+    { label: 'Operação Finalizada', time: data.dataHoraCompleto, icon: CheckCircle2 },
+    { label: 'Assinatura Representante', time: data.dataHoraRepresentanteCIA, icon: Clock },
+    { label: 'Manifesto Entregue', time: data.dataHoraEntregue, icon: Plane }
   ];
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-      <div className="bg-white w-full max-w-3xl border-2 border-slate-900 shadow-2xl flex flex-col max-h-[90vh]">
-        {/* HEADER TÉCNICO */}
-        <div className="bg-[#0f172a] text-white p-5 flex items-center justify-between border-b-2 border-slate-800">
+      <div className="bg-white w-full max-w-4xl border-2 border-slate-900 shadow-2xl flex flex-col max-h-[95vh]">
+        {/* HEADER */}
+        <div className="bg-[#0f172a] text-white p-5 flex items-center justify-between border-b-2 border-slate-800 shrink-0">
           <div className="flex items-center gap-4">
              <div className="p-2 bg-indigo-600">
                 <Search size={20} className="text-white" />
              </div>
              <div>
-                <h3 className="text-[12px] font-black uppercase tracking-[0.2em]">Rastreabilidade de Manifesto</h3>
-                <p className="text-[10px] font-bold text-slate-400 font-mono">{data.id}</p>
+                <h3 className="text-[12px] font-black uppercase tracking-[0.2em]">Rastreabilidade e Log de Auditoria</h3>
+                <p className="text-[10px] font-bold text-slate-400 font-mono">MANIFESTO ID: {data.id}</p>
              </div>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-slate-800 transition-colors"><X size={20} /></button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-8 space-y-12 custom-scrollbar">
           
           {/* PAINEL DE METADADOS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Companhia Aérea</p>
-                <p className="text-sm font-black text-slate-800 uppercase tracking-tighter">{data.cia}</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">CIA Aérea</p>
+                <p className="text-xs font-black text-slate-800 uppercase">{data.cia}</p>
              </div>
-             <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Turno Operacional</p>
-                <p className="text-sm font-black text-slate-800 uppercase tracking-tighter">{data.turno}</p>
+             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Turno</p>
+                <p className="text-xs font-black text-slate-800 uppercase">{data.turno}</p>
              </div>
-             <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
-                <p className="text-[9px] font-black text-indigo-400 uppercase mb-2">Status do Fluxo</p>
-                <span className="text-[10px] font-black text-indigo-700 uppercase">{data.status}</span>
+             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Operador Atribuído</p>
+                <p className="text-xs font-black text-slate-800 uppercase">{data.usuarioResponsavel || '---'}</p>
              </div>
-          </div>
-
-          {/* RESPONSÁVEIS */}
-          <div className="space-y-4">
-             <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
-                <UserIcon size={14} /> Equipe Responsável
-             </h4>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-md">
-                   <div className="w-8 h-8 bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 rounded-full">OP</div>
-                   <div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase">Responsável pela Carga</p>
-                      <p className="text-[11px] font-bold text-slate-800 uppercase">{data.usuarioResponsavel || 'Não Atribuído'}</p>
-                   </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-md">
-                   <div className="w-8 h-8 bg-indigo-100 flex items-center justify-center text-[10px] font-black text-indigo-600 rounded-full">SM</div>
-                   <div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase">Criado por (Sistema)</p>
-                      <p className="text-[11px] font-bold text-slate-800 uppercase">{data.usuario}</p>
-                   </div>
-                </div>
+             <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                <p className="text-[8px] font-black text-indigo-400 uppercase mb-1">Status Final</p>
+                <span className="text-[9px] font-black text-indigo-700 uppercase">{data.status}</span>
              </div>
           </div>
 
-          {/* LINHA DO TEMPO GRÁFICA */}
-          <div className="space-y-6">
-             <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
-                <Clock size={14} /> Histórico de Eventos
-             </h4>
-             
-             <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
-                {timelineSteps.map((step, idx) => {
-                  const hasDate = step.time && step.time !== '---' && step.time !== '';
-                  return (
-                    <div key={idx} className="relative">
-                      <div className={`absolute -left-[30px] top-0 p-1 rounded-full border-2 bg-white z-10 ${hasDate ? 'border-indigo-600 text-indigo-600' : 'border-slate-100 text-slate-300'}`}>
-                        <step.icon size={12} />
-                      </div>
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            {/* COLUNA ESQUERDA: LINHA DO TEMPO AUTOMÁTICA */}
+            <div className="lg:col-span-5 space-y-6">
+               <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <Clock size={14} className="text-slate-400" /> Fluxo Temporal
+               </h4>
+               
+               <div className="relative pl-8 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
+                  {timelineSteps.map((step, idx) => {
+                    const hasDate = step.time && step.time !== '---' && step.time !== '';
+                    return (
+                      <div key={idx} className="relative">
+                        <div className={`absolute -left-[30px] top-0 p-1 rounded-full border-2 bg-white z-10 ${hasDate ? 'border-indigo-600 text-indigo-600' : 'border-slate-100 text-slate-300'}`}>
+                          <step.icon size={12} />
+                        </div>
                         <div className="flex flex-col">
-                           <span className={`text-[11px] font-black uppercase tracking-tight ${hasDate ? 'text-slate-800' : 'text-slate-300'}`}>{step.label}</span>
-                           {!hasDate && <span className="text-[8px] font-bold text-slate-300 uppercase italic">Aguardando execução...</span>}
-                        </div>
-                        <div className={`text-[10px] font-bold font-mono px-3 py-1 rounded ${hasDate ? 'bg-slate-50 text-slate-600' : 'text-transparent select-none'}`}>
-                           {formatTime(step.time)}
+                           <span className={`text-[10px] font-black uppercase tracking-tight ${hasDate ? 'text-slate-800' : 'text-slate-300'}`}>{step.label}</span>
+                           <span className={`text-[10px] font-bold font-mono mt-0.5 ${hasDate ? 'text-slate-500' : 'text-transparent'}`}>
+                              {formatTime(step.time)}
+                           </span>
                         </div>
                       </div>
+                    );
+                  })}
+               </div>
+            </div>
+
+            {/* COLUNA DIREITA: LOG DE ATIVIDADES DETALHADO */}
+            <div className="lg:col-span-7 space-y-6">
+               <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
+                  <History size={14} className="text-indigo-600" /> Histórico de Auditoria (Logs)
+               </h4>
+
+               <div className="bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden min-h-[400px]">
+                  {loadingLogs ? (
+                    <div className="flex flex-col items-center justify-center h-[400px] text-slate-300 gap-3">
+                       <Loader2 size={32} className="animate-spin" />
+                       <span className="text-[10px] font-black uppercase tracking-widest">Sincronizando registros...</span>
                     </div>
-                  );
-                })}
-             </div>
+                  ) : logs.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[400px] text-slate-300">
+                       <FileText size={48} className="opacity-10 mb-2" />
+                       <span className="text-[9px] font-bold uppercase italic">Sem registros de log para este manifesto.</span>
+                    </div>
+                  ) : (
+                    <div className="p-4 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+                       {logs.map((log) => (
+                         <div key={log.id} className="bg-white border border-slate-100 rounded-lg p-3 shadow-sm hover:border-indigo-200 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                               <div className="flex items-center gap-2">
+                                  <UserCircle size={14} className="text-slate-400" />
+                                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-tighter">{log.usuario}</span>
+                               </div>
+                               <span className="text-[8px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{log.createdAtBR}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mb-1.5">
+                               <span className={`text-[9px] font-black px-2 py-0.5 rounded border ${
+                                  log.acao.includes('Edição') ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                  log.acao.includes('Recebido') ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                  log.acao.includes('Cancelado') ? 'bg-red-50 text-red-600 border-red-100' :
+                                  'bg-slate-50 text-slate-600 border-slate-100'
+                               } uppercase`}>
+                                  {log.acao}
+                               </span>
+                            </div>
+                            {log.justificativa && (
+                               <div className="mt-2 p-2 bg-indigo-50/50 border-l-4 border-indigo-400">
+                                  <p className="text-[10px] font-bold text-slate-700 italic">
+                                     "{log.justificativa}"
+                                  </p>
+                               </div>
+                            )}
+                         </div>
+                       ))}
+                    </div>
+                  )}
+               </div>
+            </div>
           </div>
 
         </div>
 
         <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-between items-center shrink-0">
-          <p className="text-[9px] font-bold text-slate-400 uppercase">Última Auditoria: <span className="font-black text-slate-600">{data.carimboDataHR || '---'}</span></p>
-          <button onClick={onClose} className="h-10 px-8 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-md">Concluir Leitura</button>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Base de Dados: <span className="font-black text-slate-900">Hostinger SMO v2.5</span></p>
+          <button onClick={onClose} className="h-11 px-10 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl">Fechar Relatório</button>
         </div>
       </div>
     </div>
