@@ -9,7 +9,7 @@ interface EfficiencyDashboardProps {
 
 export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manifestos }) => {
   
-  // LÓGICA DE PARSING REFORMULADA: Robusta para ISO e BR
+  // LÓGICA DE PARSING: Robusta para ISO e BR
   const parseAnyDate = (dateStr: string | undefined): Date | null => {
     if (!dateStr || dateStr === '---' || dateStr === '') return null;
     
@@ -50,8 +50,8 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
       }
     });
     return {
-      cadastroRank: Object.entries(cadastros).sort((a, b) => b[1] - a[1]).slice(0, 5),
-      atribuicaoRank: Object.entries(atribuicoes).sort((a, b) => b[1] - a[1]).slice(0, 5)
+      cadastroRank: Object.entries(cadastros).sort((a, b) => b[1] - a[1]).slice(0, 10),
+      atribuicaoRank: Object.entries(atribuicoes).sort((a, b) => b[1] - a[1]).slice(0, 10)
     };
   }, [manifestos]);
 
@@ -108,7 +108,7 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
   return (
     <div className="flex flex-col gap-4 animate-fadeIn h-[calc(100vh-140px)] overflow-hidden">
       
-      {/* HEADER FIXO (SHRINK-0) */}
+      {/* HEADER FIXO */}
       <div className="bg-[#0f172a] border-2 border-slate-800 p-3 flex items-center justify-between shadow-lg shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-indigo-500 rounded">
@@ -125,22 +125,21 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
         </div>
       </div>
 
-      {/* GRUPO SUPERIOR (AZUL) - 50% DA ALTURA ÚTIL */}
+      {/* GRUPO SUPERIOR (AZUL) */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* RANKING CADASTRO */}
         <div className="bg-white border-2 border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
           <div className="p-2 border-b bg-slate-50 flex items-center gap-2 shrink-0">
              <Award size={14} className="text-indigo-600" />
              <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Ranking Cadastro</h3>
           </div>
-          <div className="p-3 flex-1 flex flex-col justify-center space-y-2.5 overflow-y-auto">
+          <div className="p-4 flex-1 flex flex-col justify-start space-y-2.5 overflow-y-auto custom-scrollbar">
             {stats.cadastroRank.length === 0 ? (
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center py-10 opacity-30">
                 <p className="text-[9px] text-slate-400 font-black uppercase italic">Sem Cargas Entregues</p>
               </div>
             ) : (
               stats.cadastroRank.map(([name, count], idx) => (
-                <div key={name} className="flex items-center justify-between">
+                <div key={name} className="flex items-center justify-between border-b border-slate-50 pb-1.5">
                    <div className="flex items-center gap-2">
                       <span className="text-[9px] font-black w-4 h-4 flex items-center justify-center bg-slate-100 text-slate-400 rounded-sm">{idx + 1}</span>
                       <span className="text-[10px] font-black text-slate-600 uppercase truncate max-w-[140px]">{name}</span>
@@ -155,20 +154,19 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
           </div>
         </div>
 
-        {/* RANKING ATRIBUIÇÃO */}
         <div className="bg-white border-2 border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
           <div className="p-2 border-b bg-slate-50 flex items-center gap-2 shrink-0">
              <Target size={14} className="text-emerald-600" />
              <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Ranking Atribuição</h3>
           </div>
-          <div className="p-3 flex-1 flex flex-col justify-center space-y-2.5 overflow-y-auto">
+          <div className="p-4 flex-1 flex flex-col justify-start space-y-2.5 overflow-y-auto custom-scrollbar">
             {stats.atribuicaoRank.length === 0 ? (
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center py-10 opacity-30">
                 <p className="text-[9px] text-slate-400 font-black uppercase italic">Aguardando Conclusões</p>
               </div>
             ) : (
               stats.atribuicaoRank.map(([name, count], idx) => (
-                <div key={name} className="flex items-center justify-between">
+                <div key={name} className="flex items-center justify-between border-b border-slate-50 pb-1.5">
                    <div className="flex items-center gap-2">
                       <span className="text-[9px] font-black w-4 h-4 flex items-center justify-center bg-slate-100 text-slate-400 rounded-sm">{idx + 1}</span>
                       <span className="text-[10px] font-black text-slate-600 uppercase truncate max-w-[140px]">{name}</span>
@@ -183,33 +181,32 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
           </div>
         </div>
 
-        {/* SLA METRICS */}
-        <div className="bg-slate-900 border-2 border-slate-800 shadow-sm text-white flex flex-col justify-center p-4 h-full space-y-4">
-           <div className="flex items-center justify-between border-l-2 border-blue-500 pl-3">
+        <div className="bg-slate-900 border-2 border-slate-800 shadow-sm text-white flex flex-col justify-start p-6 h-full space-y-6">
+           <div className="flex items-center justify-between border-l-2 border-blue-500 pl-4">
               <div>
                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">SLA Espera</p>
                  <p className="text-[9px] font-bold text-slate-400 uppercase">Rec ➔ Ini</p>
               </div>
-              <p className="text-lg font-black text-blue-400 font-mono-tech leading-none">{formatMinutes(slaStats.avgEspera)}</p>
+              <p className="text-xl font-black text-blue-400 font-mono-tech leading-none">{formatMinutes(slaStats.avgEspera)}</p>
            </div>
-           <div className="flex items-center justify-between border-l-2 border-amber-500 pl-3">
+           <div className="flex items-center justify-between border-l-2 border-amber-500 pl-4">
               <div>
                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">SLA Puxe</p>
                  <p className="text-[9px] font-bold text-slate-400 uppercase">Ini ➔ Com</p>
               </div>
-              <p className="text-lg font-black text-amber-400 font-mono-tech leading-none">{formatMinutes(slaStats.avgPuxada)}</p>
+              <p className="text-xl font-black text-amber-400 font-mono-tech leading-none">{formatMinutes(slaStats.avgPuxada)}</p>
            </div>
-           <div className="flex items-center justify-between border-l-2 border-emerald-500 pl-3">
+           <div className="flex items-center justify-between border-l-2 border-emerald-500 pl-4">
               <div>
                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">SLA Entrega</p>
                  <p className="text-[9px] font-bold text-slate-400 uppercase">Com ➔ Ent</p>
               </div>
-              <p className="text-lg font-black text-emerald-400 font-mono-tech leading-none">{formatMinutes(slaStats.avgLiberacao)}</p>
+              <p className="text-xl font-black text-emerald-400 font-mono-tech leading-none">{formatMinutes(slaStats.avgLiberacao)}</p>
            </div>
         </div>
       </div>
 
-      {/* GRUPO INFERIOR (VERMELHO) - 50% DA ALTURA ÚTIL */}
+      {/* GRUPO INFERIOR (VERMELHO) */}
       <div className="bg-white border-2 border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
         <div className="p-3 border-b bg-slate-50 flex items-center justify-between shrink-0">
            <div className="flex items-center gap-2">
@@ -221,23 +218,27 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
            </span>
         </div>
         
-        {/* ÁREA DO GRÁFICO OTIMIZADA PARA 50% DE ALTURA */}
         <div className="flex-1 flex flex-col justify-end p-4 px-10 min-h-0 pt-10">
            <div className="flex-1 flex items-end gap-1 px-2 relative border-b-2 border-slate-100 w-full mb-2">
               {hourlyStats.map(h => (
-                <div key={h.hour} className="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
-                   {h.count > 0 && (
-                      <div className="absolute top-[-26px] left-1/2 -translate-x-1/2 flex flex-col items-center transition-all z-10">
-                         <span className="text-[10px] font-black text-slate-900 font-mono-tech bg-white px-1">{h.count}</span>
-                      </div>
-                   )}
-                   {/* ESCALA DE 70% PARA SEGURANÇA VISUAL */}
+                <div key={h.hour} className="flex-1 flex flex-col items-center group h-full justify-end relative">
+                   {/* CONTAINER DA BARRA COM O INDICADOR RELATIVO */}
                    <div 
-                      className={`w-full max-w-[28px] transition-all duration-700 ease-out rounded-t-sm shadow-sm ${
-                        h.count > 0 ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-slate-50'
-                      }`}
+                      className="relative w-full max-w-[28px] flex flex-col items-center" 
                       style={{ height: `${(h.count / maxHourlyCount) * 70}%` }}
-                   ></div>
+                   >
+                      {h.count > 0 && (
+                        <span className="absolute -top-6 text-[10px] font-black text-slate-900 font-mono-tech whitespace-nowrap">
+                          {h.count}
+                        </span>
+                      )}
+                      <div 
+                        className={`w-full h-full transition-all duration-700 ease-out rounded-t-sm shadow-sm ${
+                          h.count > 0 ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-slate-50'
+                        }`}
+                      ></div>
+                   </div>
+                   {/* RÓTULO DA HORA */}
                    <span className={`text-[8px] font-black font-mono leading-none mt-1 ${h.count > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
                       {String(h.hour).padStart(2, '0')}
                    </span>
