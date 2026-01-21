@@ -150,8 +150,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ manifestos }) => {
                 col.items.map(m => (
                   <div key={m.id} className="bg-white border border-slate-200 p-3 shadow-sm hover:border-indigo-400 hover:shadow-md transition-all group">
                     
-                    {/* HEADER: ID e CIA */}
-                    <div className="flex justify-between items-center mb-2.5">
+                    {/* BARRA DE SLA DEDICADA: Agora no topo */}
+                    <div className="mb-2.5 px-2 py-1.5 bg-slate-900 rounded-sm flex items-center justify-between">
+                       <div className="flex items-center gap-1.5">
+                          <Timer size={11} className="text-indigo-400" />
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tempo em Status</span>
+                       </div>
+                       <span className="text-[11px] font-bold font-mono-tech text-white tracking-widest">
+                          {getElapsedTime(m.carimboDataHR)}
+                       </span>
+                    </div>
+
+                    {/* HEADER: ID e CIA (Movido para baixo da barra de SLA) */}
+                    <div className="flex justify-between items-center mb-3">
                       <span className="text-[13px] font-black text-slate-900 font-mono-tech tracking-tighter">{m.id}</span>
                       <span className={`text-[10px] font-black px-1.5 py-0.5 rounded uppercase ${
                         m.cia === 'LATAM' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' :
@@ -160,17 +171,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ manifestos }) => {
                       }`}>
                         {m.cia}
                       </span>
-                    </div>
-
-                    {/* BARRA DE SLA DEDICADA: Não sobrepõe informações */}
-                    <div className="mb-3 px-2 py-1.5 bg-slate-900 rounded-sm flex items-center justify-between">
-                       <div className="flex items-center gap-1.5">
-                          <Timer size={11} className="text-indigo-400" />
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tempo em Status</span>
-                       </div>
-                       <span className="text-[11px] font-bold font-mono-tech text-white tracking-widest">
-                          {getElapsedTime(m.carimboDataHR)}
-                       </span>
                     </div>
                     
                     {/* GRID DE INFORMAÇÕES SECUNDÁRIAS */}
