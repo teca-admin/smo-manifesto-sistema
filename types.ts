@@ -5,8 +5,8 @@ export interface Manifesto {
   cia: string;
   dataHoraPuxado: string;
   dataHoraRecebido: string;
-  dataHoraRepresentanteCIA?: string; // Novo campo
-  dataHoraEntregue?: string;        // Novo campo
+  dataHoraRepresentanteCIA?: string; 
+  dataHoraEntregue?: string;        
   status: string;
   turno: string;
   carimboDataHR?: string;
@@ -52,8 +52,8 @@ export interface SMO_Sistema_DB {
   CIA: string;
   Manifesto_Puxado: string;
   Manifesto_Recebido: string;
-  Representante_CIA?: string; // Novo campo no DB
-  Manifesto_Entregue?: string;  // Novo campo no DB
+  Representante_CIA?: string; 
+  Manifesto_Entregue?: string;  
   Status: string;
   ID_Manifesto: string;
   Turno: string;
@@ -65,22 +65,6 @@ export interface SMO_Sistema_DB {
   "Manifesto_em_Conferência"?: string;
   Manifesto_Pendente?: string;
   Manifesto_Completo?: string;
-}
-
-export interface PerformanceLogDB {
-  data: string;
-  total_requisicoes: number;
-  total_n8n: number;
-  banda_mb: number;
-  usuarios_unicos: string[];
-  ultima_atualizacao: string;
-  total_cadastro: number;
-  total_edicao: number;
-  total_cancelamento: number;
-  total_anulacao: number;
-  total_login: number;
-  total_logoff: number;
-  detalhes_hora?: Record<string, number>;
 }
 
 export const CIAS = ["Azul", "Gol", "Latam", "Modern", "Total"];

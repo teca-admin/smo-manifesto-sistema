@@ -1,18 +1,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { LoginScreen } from './components/LoginScreen';
 import { Dashboard } from './components/Dashboard';
 import { OperationalDashboard } from './components/OperationalDashboard';
 import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AssignResponsibilityModal, ReprFillModal } from './components/Modals';
 import { Manifesto, User, SMO_Sistema_DB } from './types';
 import { supabase } from './supabaseClient';
-import { LayoutGrid, Plane, LogOut, Terminal, Activity } from 'lucide-react';
-import { PerformanceMonitor } from './components/PerformanceMonitor';
+import { LayoutGrid, Plane, LogOut, Terminal, Activity, ShieldCheck } from 'lucide-react';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activeTab, setActiveTab] = useState<'sistema' | 'operacional'>('sistema');
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [manifestos, setManifestos] = useState<Manifesto[]>([]);
   const [nextId, setNextId] = useState<string>('Automático');
   
@@ -24,6 +20,9 @@ function App() {
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
   
+  // Identificador de quem está operando (para Auditoria)
+  const [activeOperatorName, setActiveOperatorName] = useState<string | null>(null);
+
   const getCurrentTimestampBR = () => new Date().toLocaleString('pt-BR');
 
   const getTurnoAtual = () => {
@@ -31,20 +30,6 @@ function App() {
     if (hora >= 6 && hora < 14) return '1º TURNO';
     if (hora >= 14 && hora < 22) return '2º TURNO';
     return '3º TURNO';
-  };
-
-  const handleLogout = () => {
-    window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'logoff' } }));
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-    setActiveTab('sistema');
-    setManifestos([]);
-    setEditingId(null);
-    setFillingReprId(null);
-    setViewingHistoryId(null);
-    setCancellationId(null);
-    setAssigningId(null);
-    setLoadingMsg(null);
   };
 
   const fetchNextId = useCallback(async () => {
@@ -103,17 +88,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!isLoggedIn) return;
     fetchManifestos();
     fetchNextId();
     const interval = setInterval(fetchManifestos, 5000);
     return () => clearInterval(interval);
-  }, [isLoggedIn, fetchManifestos, fetchNextId]);
+  }, [fetchManifestos, fetchNextId]);
 
-  const updateStatus = async (id: string, status: string, fields: any = {}) => {
+  const updateStatus = async (id: string, status: string, fields: any = {}, operatorName?: string) => {
     setLoadingMsg("Processando...");
     try {
-      const user = currentUser?.Nome_Completo || "Sistema";
+      const user = operatorName || activeOperatorName || "Sistema";
       const now = getCurrentTimestampBR();
       
       const updateData = { 
@@ -149,7 +133,7 @@ function App() {
   const handleSaveEdit = async (data: any) => {
     setLoadingMsg("Salvando Alterações...");
     try {
-      const user = currentUser?.Nome_Completo || "Sistema";
+      const user = activeOperatorName || "Sistema";
       const { error } = await supabase.from('SMO_Sistema').update({
         CIA: data.cia,
         Manifesto_Puxado: data.dataHoraPuxado,
@@ -183,7 +167,7 @@ function App() {
   const handleSaveReprDate = async (id: string, date: string) => {
     setLoadingMsg("Atualizando Representante...");
     try {
-      const user = currentUser?.Nome_Completo || "Sistema";
+      const user = activeOperatorName || "Sistema";
       const { error } = await supabase.from('SMO_Sistema').update({
         Representante_CIA: date,
         "Carimbo_Data/HR": getCurrentTimestampBR(),
@@ -208,8 +192,6 @@ function App() {
       setLoadingMsg(null);
     }
   };
-
-  if (!isLoggedIn) return <LoginScreen onLoginSuccess={(u) => { setCurrentUser(u); setIsLoggedIn(true); }} loading={false} setLoading={() => {}} />;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc] custom-scrollbar">
@@ -253,13 +235,9 @@ function App() {
             </div>
 
             <div className="text-right">
-              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">Auth: {currentUser?.Usuario}</p>
-              <p className="text-[11px] font-bold text-slate-100 uppercase">{currentUser?.Nome_Completo}</p>
+              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">Terminal Livre</p>
+              <p className="text-[11px] font-bold text-slate-100 uppercase">Acesso Direto</p>
             </div>
-
-            <button onClick={handleLogout} className="p-2.5 bg-slate-800 hover:bg-red-600 transition-colors border border-slate-700 hover:border-red-500 text-slate-400 hover:text-white group">
-              <LogOut size={16} className="group-hover:scale-110 transition-transform" />
-            </button>
           </div>
         </div>
       </header>
@@ -268,27 +246,25 @@ function App() {
         <div className="max-w-[1700px] mx-auto space-y-6">
           {activeTab === 'sistema' ? (
             <Dashboard 
-              currentUser={currentUser!}
               manifestos={manifestos}
-              onSave={async (d) => {
+              onSave={async (d, operatorName) => {
                 setLoadingMsg("Registrando...");
                 const id = await fetchNextId();
                 const turno = getTurnoAtual();
                 const { error } = await supabase.from('SMO_Sistema').insert({
                   ID_Manifesto: id, 
-                  Usuario_Sistema: currentUser?.Usuario, 
+                  Usuario_Sistema: operatorName, 
                   CIA: d.cia, 
                   Manifesto_Puxado: d.dataHoraPuxado, 
                   Manifesto_Recebido: d.dataHoraRecebido,
                   Status: "Manifesto Recebido", 
                   Turno: turno, 
                   "Carimbo_Data/HR": getCurrentTimestampBR(), 
-                  "Usuario_Ação": currentUser?.Nome_Completo
+                  "Usuario_Ação": operatorName
                 });
                 if (error) showAlert('error', error.message);
                 else { 
                   showAlert('success', `Registro Concluído (${turno})`); 
-                  window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'cadastro' } }));
                   fetchManifestos(); 
                 }
                 setLoadingMsg(null);
@@ -302,24 +278,19 @@ function App() {
               onOpenReprFill={setFillingReprId}
               onShowAlert={showAlert}
               nextId={nextId}
+              onOperatorChange={setActiveOperatorName}
             />
           ) : (
             <OperationalDashboard 
               manifestos={manifestos} 
-              onAction={(id, status, fields) => {
-                updateStatus(id, status, fields);
-                if (status === 'Manifesto Iniciado' || status === 'Manifesto Finalizado') {
-                  window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'edicao' } }));
-                }
+              onAction={(id, status, fields, operatorName) => {
+                updateStatus(id, status, fields, operatorName);
               }} 
-              currentUser={currentUser!} 
               onOpenAssign={setAssignId => setAssigningId(setAssignId)}
             />
           )}
         </div>
       </main>
-
-      <PerformanceMonitor isLoggedIn={isLoggedIn} currentUser={currentUser} manifestos={manifestos} />
 
       {editingId && (
         <EditModal 
@@ -327,7 +298,6 @@ function App() {
           onClose={() => setEditingId(null)} 
           onSave={(data) => {
             handleSaveEdit(data);
-            window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'edicao' } }));
           }} 
         />
       )}
@@ -341,7 +311,6 @@ function App() {
       {viewingHistoryId && <HistoryModal data={manifestos.find(m => m.id === viewingHistoryId)!} onClose={() => setViewingHistoryId(null)} />}
       {cancellationId && <CancellationModal onConfirm={() => {
         updateStatus(cancellationId, 'Manifesto Cancelado');
-        window.dispatchEvent(new CustomEvent('smo-action', { detail: { type: 'cancelar' } }));
         setCancellationId(null);
       }} onClose={() => setCancellationId(null)} />}
       {assigningId && (

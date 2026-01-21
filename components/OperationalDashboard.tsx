@@ -6,12 +6,11 @@ import { supabase } from '../supabaseClient';
 
 interface OperationalDashboardProps {
   manifestos: Manifesto[];
-  onAction: (id: string, action: string, fields?: any) => void;
-  currentUser: User;
+  onAction: (id: string, action: string, fields?: any, operatorName?: string) => void;
   onOpenAssign: (id: string) => void;
 }
 
-export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ manifestos, onAction, currentUser }) => {
+export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ manifestos, onAction }) => {
   const [activeOperator, setActiveOperator] = useState<Funcionario | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState<Funcionario[]>([]);
@@ -59,7 +58,6 @@ export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ mani
     return (
       <div className="max-w-xl mx-auto mt-20 animate-fadeIn">
         <div className="bg-white border-2 border-slate-900 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] p-10 flex flex-col items-center text-center relative">
-          {/* Decoração Técnica - Fixada para não depender do overflow */}
           <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600"></div>
           
           <div className="p-5 bg-slate-900 mb-8 rounded-full border-4 border-slate-100">
@@ -172,7 +170,7 @@ export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ mani
                       <p className="text-[9px] font-bold text-slate-400 uppercase">{m.cia} • Recebido</p>
                     </div>
                     <button 
-                      onClick={() => onAction(m.id, 'Manifesto Recebido', { "Usuario_Operação": activeOperator.Nome })}
+                      onClick={() => onAction(m.id, 'Manifesto Recebido', { "Usuario_Operação": activeOperator.Nome }, activeOperator.Nome)}
                       className="p-2 bg-slate-900 text-white hover:bg-indigo-600 transition-all shadow-md group-hover:scale-110"
                       title="Puxar para meu terminal"
                     >
@@ -204,7 +202,6 @@ export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ mani
             <div className="grid grid-cols-1 gap-4">
               {myActiveLoads.map(m => (
                 <div key={m.id} className={`bg-white border-2 p-6 flex flex-col md:flex-row items-center justify-between gap-8 transition-all relative overflow-hidden ${m.status === 'Manifesto Iniciado' ? 'border-amber-400 shadow-xl' : 'border-slate-200 shadow-sm'}`}>
-                   {/* Indicador Lateral */}
                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${m.status === 'Manifesto Iniciado' ? 'bg-amber-400' : m.status === 'Manifesto Finalizado' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
 
                    <div className="flex flex-wrap items-center gap-8 flex-1">
@@ -230,14 +227,14 @@ export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ mani
                       {m.status === 'Manifesto Recebido' && (
                         <>
                           <button 
-                            onClick={() => onAction(m.id, 'Manifesto Recebido', { "Usuario_Operação": null })}
+                            onClick={() => onAction(m.id, 'Manifesto Recebido', { "Usuario_Operação": null }, activeOperator.Nome)}
                             className="h-14 px-4 bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 border-2 border-slate-200 hover:border-red-200 transition-all flex items-center justify-center gap-2 group"
                             title="Remover Atribuição"
                           >
                             <UserMinus size={18} />
                           </button>
                           <button 
-                            onClick={() => onAction(m.id, 'Manifesto Iniciado', { Manifesto_Iniciado: new Date().toLocaleString('pt-BR') })}
+                            onClick={() => onAction(m.id, 'Manifesto Iniciado', { Manifesto_Iniciado: new Date().toLocaleString('pt-BR') }, activeOperator.Nome)}
                             className="flex-1 md:flex-none h-14 px-8 bg-red-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-900 transition-all shadow-lg shadow-red-100"
                           >
                             <Play size={18} className="fill-current" /> Iniciar
@@ -247,7 +244,7 @@ export const OperationalDashboard: React.FC<OperationalDashboardProps> = ({ mani
 
                       {m.status === 'Manifesto Iniciado' && (
                         <button 
-                          onClick={() => onAction(m.id, 'Manifesto Finalizado', { Manifesto_Completo: new Date().toLocaleString('pt-BR') })}
+                          onClick={() => onAction(m.id, 'Manifesto Finalizado', { Manifesto_Completo: new Date().toLocaleString('pt-BR') }, activeOperator.Nome)}
                           className="flex-1 md:flex-none h-14 px-8 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-slate-900 transition-all shadow-lg shadow-emerald-100"
                         >
                           <CheckCircle2 size={18} /> Finalizar

@@ -1,35 +1,103 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Manifesto, User } from '../types';
+import { Manifesto, User as UserType } from '../types';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CustomSelect } from './CustomSelect';
-import { Search, History, Edit3, XCircle, CheckSquare, Plus, Database, Filter, Edit, ChevronDown, ChevronUp, Archive } from 'lucide-react';
+import { Search, History, Edit3, XCircle, CheckSquare, Plus, Database, Filter, Edit, ChevronDown, ChevronUp, Archive, User as UserIcon, LogOut, Loader2, ShieldCheck, Terminal, Activity, Lock } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 interface DashboardProps {
-  currentUser: User;
   manifestos: Manifesto[];
-  onSave: (m: any) => void;
+  onSave: (m: any, operatorName: string) => void;
   onAction: (action: string, id: string) => void;
   openHistory: (id: string) => void;
   openEdit: (id: string) => void;
   onOpenReprFill: (id: string) => void;
   onShowAlert: (type: 'success' | 'error', msg: string) => void;
   nextId: string;
+  onOperatorChange?: (name: string | null) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
-  manifestos, onSave, onAction, openHistory, openEdit, onOpenReprFill, onShowAlert
+  manifestos, onSave, onAction, openHistory, openEdit, onOpenReprFill, onShowAlert, onOperatorChange
 }) => {
+  // Login State
+  const [activeProfile, setActiveProfile] = useState<UserType | null>(null);
+  const [loginId, setLoginId] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Dashboard UI State
   const [formData, setFormData] = useState({ 
     cia: '', 
     dataHoraPuxado: '', 
     dataHoraRecebido: ''
   });
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, openUpward: false });
   const [showHistory, setShowHistory] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('');
+
+  // Sincroniza o operador ativo com o componente pai para Auditoria
+  useEffect(() => {
+    if (onOperatorChange) {
+      onOperatorChange(activeProfile ? activeProfile.Nome_Completo : null);
+    }
+  }, [activeProfile, onOperatorChange]);
+
+  const handleLogin = async () => {
+    if (!loginId || !loginPass) {
+      onShowAlert('error', 'Preencha todos os campos');
+      return;
+    }
+    setIsLoggingIn(true);
+    try {
+      const { data, error } = await supabase
+        .from('Cadastro_de_Perfil')
+        .select('*')
+        .eq('Usuario', loginId)
+        .eq('Senha', loginPass)
+        .single();
+      
+      if (error || !data) {
+        onShowAlert('error', 'Credenciais Inválidas');
+      } else {
+        setActiveProfile(data);
+        onShowAlert('success', `Bem-vindo, ${data.Nome_Completo}`);
+      }
+    } catch (err) {
+      onShowAlert('error', 'Erro na Autenticação');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setActiveProfile(null);
+    setLoginId('');
+    setLoginPass('');
+  };
+
+  const handleOpenMenu = (e: React.MouseEvent, id: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const menuHeight = 250; // Altura estimada do menu para cálculo de colisão
+    const viewportHeight = window.innerHeight;
+    
+    // LOGICA DE POSICIONAMENTO INTELIGENTE
+    // Verifica se há espaço suficiente abaixo do botão
+    const spaceBelow = viewportHeight - rect.bottom;
+    const shouldOpenUpward = spaceBelow < menuHeight;
+    
+    setMenuPos({ 
+      // Se abrir para cima, usa o topo do botão como referência para o translateY(-100%)
+      // Se abrir para baixo, usa a base do botão
+      top: shouldOpenUpward ? rect.top + window.scrollY - 4 : rect.bottom + window.scrollY + 4, 
+      left: rect.left + window.scrollX - 180, // Alinha o menu à direita do botão (menu tem ~220px)
+      openUpward: shouldOpenUpward
+    });
+    setMenuOpenId(id);
+  };
 
   // FILTRO: Apenas manifestos em andamento (Base Ativa)
   const manifestosEmAndamento = manifestos.filter(m => 
@@ -88,8 +156,100 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  // TELA DE LOGIN
+  if (!activeProfile) {
+    return (
+      <div className="flex items-center justify-center min-h-[70vh] animate-fadeIn p-4">
+        <div className="w-full max-w-4xl bg-[#1e293b] flex flex-col md:flex-row shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] border border-slate-700/50 overflow-hidden">
+          
+          <div className="md:w-1/2 p-12 bg-[#2a3749] relative flex flex-col justify-between overflow-hidden">
+            <div className="absolute top-[-10%] left-[-10%] opacity-[0.05] pointer-events-none transform -rotate-12">
+               <Terminal size={400} />
+            </div>
+            
+            <div className="relative z-10">
+               <div className="flex items-center gap-3 mb-10">
+                  <div className="p-2 bg-indigo-600">
+                    <Terminal size={24} className="text-white" />
+                  </div>
+                  <h1 className="text-xl font-black text-white uppercase tracking-[0.2em]">SMO <span className="text-indigo-400">V2.5</span></h1>
+               </div>
+               
+               <h2 className="text-2xl font-black text-white leading-tight mb-4 uppercase tracking-tight">SISTEMA DE MANIFESTO OPERACIONAL</h2>
+               <div className="w-12 h-1 bg-indigo-500 mb-8"></div>
+               
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-relaxed mb-1">ACESSO RESTRITO AO TERMINAL DE LOGÍSTICA.</p>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] leading-relaxed">AUDITORIA EM TEMPO REAL HABILITADA.</p>
+            </div>
+
+            <div className="relative z-10 mt-20 flex items-center gap-6">
+               <div className="flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-indigo-400" />
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Encrypted Auth</span>
+               </div>
+               <div className="flex items-center gap-2">
+                  <Activity size={14} className="text-emerald-400" />
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Network Stable</span>
+               </div>
+            </div>
+          </div>
+
+          <div className="md:w-1/2 p-12 bg-[#f1f5f9] flex flex-col justify-center">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">IDENTIFICAÇÃO DE OPERADOR</p>
+            <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-10">LOGIN DE ACESSO</h3>
+            
+            <div className="space-y-6">
+               <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">ID de Usuário</label>
+                  <div className="relative">
+                    <UserIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      type="text" 
+                      placeholder="DIGITE SEU ID"
+                      value={loginId}
+                      onChange={e => setLoginId(e.target.value)}
+                      className="w-full h-14 pl-12 pr-4 bg-white border border-slate-200 text-xs font-bold uppercase outline-none focus:border-indigo-600 transition-all shadow-sm"
+                    />
+                  </div>
+               </div>
+
+               <div className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Código de Segurança</label>
+                  <div className="relative">
+                    <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      type="password" 
+                      placeholder="••••••••"
+                      value={loginPass}
+                      onChange={e => setLoginPass(e.target.value)}
+                      onKeyPress={e => e.key === 'Enter' && handleLogin()}
+                      className="w-full h-14 pl-12 pr-4 bg-white border border-slate-200 text-xs font-bold outline-none focus:border-indigo-600 transition-all shadow-sm"
+                    />
+                  </div>
+               </div>
+
+               <button 
+                onClick={handleLogin}
+                disabled={isLoggingIn}
+                className="w-full h-14 bg-[#475569] hover:bg-indigo-700 text-white font-black text-[11px] uppercase tracking-[0.2em] transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50"
+               >
+                 {isLoggingIn ? <Loader2 size={18} className="animate-spin" /> : "AUTENTICAR NO SISTEMA"}
+               </button>
+            </div>
+
+            <div className="mt-12 pt-8 border-t border-slate-200 flex items-center justify-center gap-2">
+               <div className="h-px w-8 bg-slate-300"></div>
+               <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest italic">WFS GROUND HANDLING SERVICES</span>
+               <div className="h-px w-8 bg-slate-300"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const renderTable = (data: Manifesto[], isHistory: boolean = false) => {
-    const activeHeaders = ['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Turno', 'Ação'];
+    const activeHeaders = ['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Receivado', 'Repr. CIA', 'Turno', 'Ação'];
     const activeWidths = ['14%', '16%', '11%', '14%', '14%', '14%', '9%', '8%'];
     
     const historyHeaders = ['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Ação'];
@@ -101,8 +261,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return (
       <div className="overflow-x-auto">
         <table className="w-full border-collapse table-fixed">
-          <thead className={isHistory ? "sticky top-0 z-10" : ""}>
-            <tr className={`${isHistory ? 'bg-slate-200 shadow-sm' : 'bg-slate-100/50'} border-b border-slate-200`}>
+          <thead>
+            <tr className={`${isHistory ? 'bg-slate-200' : 'bg-slate-100/50'} border-b border-slate-200`}>
               {headers.map((h, idx, arr) => (
                 <th 
                   key={h} 
@@ -118,7 +278,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {data.length === 0 ? (
               <tr>
                 <td colSpan={isHistory ? 9 : 8} className="py-12 text-center text-[10px] font-bold text-slate-400 uppercase italic">
-                  {isHistory ? "Nenhum resultado encontrado no filtro." : "Nenhum manifesto em andamento no momento."}
+                  Nenhum manifesto registrado.
                 </td>
               </tr>
             ) : (
@@ -172,11 +332,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                     <td className="py-3 px-5 text-right">
                       <button 
-                        onClick={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setMenuPos({ top: rect.bottom + window.scrollY, left: rect.left });
-                          setMenuOpenId(m.id);
-                        }} 
+                        onClick={(e) => handleOpenMenu(e, m.id)} 
                         className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 transition-all border border-transparent hover:border-indigo-200"
                       >
                         <History size={16} />
@@ -194,7 +350,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="flex flex-col gap-6 animate-fadeIn">
-      {/* PAINEL DE CADASTRO SIMPLIFICADO */}
+      <div className="bg-[#0f172a] border-2 border-slate-800 p-4 flex flex-col md:flex-row items-center justify-between shadow-xl">
+        <div className="flex items-center gap-4">
+           <div className="w-10 h-10 bg-indigo-600 flex items-center justify-center text-sm font-black text-white rounded">
+             {activeProfile.Nome_Completo.charAt(0)}
+           </div>
+           <div>
+              <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-0.5">Operador de Cadastro</p>
+              <h2 className="text-sm font-black text-white uppercase tracking-tight">{activeProfile.Nome_Completo}</h2>
+           </div>
+        </div>
+        <button 
+          onClick={handleLogout} 
+          className="h-8 px-4 bg-red-600/10 hover:bg-red-600 border border-red-600/30 hover:border-red-600 text-red-500 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+        >
+          <LogOut size={12} /> Sair do Terminal
+        </button>
+      </div>
+
       <div className="bg-white border-2 border-slate-200 panel-shadow">
         <div className="bg-slate-50 px-5 py-2.5 border-b-2 border-slate-200 flex items-center justify-between">
           <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -221,10 +394,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <button 
                 onClick={() => {
                   if (!formData.cia || !formData.dataHoraPuxado) return onShowAlert('error', 'Campos Obrigatórios Pendentes');
-                  onSave(formData);
+                  onSave(formData, activeProfile.Nome_Completo);
                   setFormData({ cia: '', dataHoraPuxado: '', dataHoraRecebido: '' });
                 }}
-                className="w-full h-10 bg-[#0f172a] hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group shadow-lg shadow-indigo-100/50"
+                className="w-full h-10 bg-[#0f172a] hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 group shadow-lg"
               >
                 Confirmar Registro
               </button>
@@ -233,7 +406,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* BASE DE DADOS ATIVA */}
       <div className="bg-white border-2 border-slate-200 panel-shadow overflow-hidden">
         <div className="bg-[#0f172a] px-5 py-3 border-b-2 border-slate-900 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -251,8 +423,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {renderTable(manifestosEmAndamento, false)}
       </div>
 
-      {/* ARQUIVO DE MANIFESTOS CONCLUÍDOS */}
-      <div className="bg-white border-2 border-slate-200 panel-shadow overflow-hidden transition-all duration-300">
+      <div className="bg-white border-2 border-slate-200 panel-shadow overflow-hidden">
         <div 
           onClick={() => setShowHistory(!showHistory)}
           className="w-full bg-slate-50 px-5 py-3 border-b-2 border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 cursor-pointer hover:bg-slate-100 transition-colors"
@@ -262,7 +433,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <Archive size={14} className="text-slate-400" /> Arquivo de Manifestos Concluídos
             </h3>
             <div className="h-4 w-[1px] bg-slate-300" />
-            <span className="text-[9px] font-bold text-slate-400 uppercase italic">Itens Processados: {allHistory.length}</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase italic">Processados: {allHistory.length}</span>
           </div>
           
           <div className="flex items-center gap-4 w-full md:w-auto">
@@ -274,7 +445,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     value={historyFilter}
                     onChange={e => setHistoryFilter(e.target.value)}
                     placeholder="BUSCAR NO ARQUIVO..."
-                    className="w-full h-8 pl-10 pr-4 bg-white border-2 border-slate-200 text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 transition-all placeholder:text-slate-300"
+                    className="w-full h-8 pl-10 pr-4 bg-white border-2 border-slate-200 text-[10px] font-black uppercase outline-none focus:border-indigo-500 transition-all"
                  />
               </div>
             )}
@@ -285,19 +456,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
         
         {showHistory && (
-          <>
-            <div className="max-h-[440px] overflow-y-auto custom-scrollbar bg-slate-50/20 animate-fadeIn">
-              {renderTable(filteredHistory, true)}
-            </div>
-            
-            <div className="bg-slate-100 px-5 py-2.5 border-t border-slate-200 flex justify-between items-center">
-               <div className="flex gap-4">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Limite de Visualização: 100 Itens</span>
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Filtrados: {filteredHistory.length}</span>
-               </div>
-               <span className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em]">Clique no cabeçalho para ocultar</span>
-            </div>
-          </>
+          <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+            {renderTable(filteredHistory, true)}
+          </div>
         )}
       </div>
 
@@ -305,7 +466,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpenId(null)}>
             <div 
                className="absolute bg-white border-2 border-slate-800 shadow-2xl min-w-[220px] py-1.5 animate-fadeIn"
-               style={{ top: menuPos.top + 4, left: menuPos.left - 200 }}
+               style={{ 
+                  top: menuPos.top, 
+                  left: menuPos.left,
+                  // Inverte o posicionamento usando transform quando for abrir para cima
+                  transform: menuPos.openUpward ? 'translateY(-100%)' : 'none'
+               }}
                onClick={e => e.stopPropagation()}
             >
               <div className="px-4 py-1 border-b border-slate-100 mb-1">
@@ -315,22 +481,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               
               {!allHistory.find(hm => hm.id === menuOpenId) && (
                 <>
-                  <button 
-                    onClick={() => { 
-                      const selectedM = manifestos.find(m => m.id === menuOpenId);
-                      const hasRepr = selectedM?.dataHoraRepresentanteCIA && selectedM.dataHoraRepresentanteCIA !== '---' && selectedM.dataHoraRepresentanteCIA !== '';
-                      
-                      if (!hasRepr) {
-                        onShowAlert('error', 'Representante CIA Obrigatório para Entrega');
-                      } else {
-                        onAction('entregar', menuOpenId);
-                        setMenuOpenId(null);
-                      }
-                    }} 
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest transition-colors"
-                  >
-                    <CheckSquare size={14} className="text-emerald-400"/> ENTREGAR MANIFESTO
-                  </button>
+                  <button onClick={() => { onAction('entregar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest transition-colors"><CheckSquare size={14} className="text-emerald-400"/> ENTREGAR MANIFESTO</button>
                   <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Edit3 size={14} className="text-indigo-400"/> Editar Registro</button>
                   <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest transition-colors"><XCircle size={14} className="text-red-400"/> Cancelar Item</button>
                 </>
