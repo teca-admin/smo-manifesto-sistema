@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Manifesto, User } from '../types';
@@ -69,10 +68,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const renderTable = (data: Manifesto[], isHistory: boolean = false) => {
-    // Escala Matemática de Larguras Ajustada (Total 100%)
-    // Aumento da coluna Ação para 7% para evitar corte do texto "AÇÃO"
-    const columnWidths = ['13%', '15%', '9%', '12%', '12%', '12%', '12%', '8%', '7%'];
-    const headers = ['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Ação'];
+    // Configuração de Colunas e Larguras (Escala 100%)
+    
+    // 1. BASE ATIVA (8 Colunas) - Coluna "Entregue" Removida
+    const activeHeaders = ['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Turno', 'Ação'];
+    const activeWidths = ['14%', '16%', '11%', '14%', '14%', '14%', '9%', '8%'];
+    
+    // 2. ARQUIVO/HISTÓRICO (9 Colunas) - Mantém "Entregue"
+    const historyHeaders = ['ID Operacional', 'Status Atual', 'Companhia', 'Puxado', 'Recebido', 'Repr. CIA', 'Entregue', 'Turno', 'Ação'];
+    const historyWidths = ['12%', '14%', '9%', '12%', '12%', '12%', '12%', '9%', '8%'];
+
+    const headers = isHistory ? historyHeaders : activeHeaders;
+    const columnWidths = isHistory ? historyWidths : activeWidths;
 
     return (
       <div className="overflow-x-auto">
@@ -93,7 +100,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <tbody className="divide-y divide-slate-100">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-12 text-center text-[10px] font-bold text-slate-400 uppercase italic">
+                <td colSpan={isHistory ? 9 : 8} className="py-12 text-center text-[10px] font-bold text-slate-400 uppercase italic">
                   {isHistory ? "Nenhum histórico registrado hoje." : "Nenhum manifesto em andamento no momento."}
                 </td>
               </tr>
@@ -104,19 +111,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                 return (
                   <tr key={m.id} className={`group hover:bg-indigo-50/40 transition-colors ${isHistory ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+                    {/* Coluna 1: ID */}
                     <td style={{ width: columnWidths[0] }} className="py-3 px-5 text-xs font-bold text-slate-900 font-mono-tech tracking-tighter whitespace-nowrap overflow-hidden text-ellipsis">{m.id}</td>
+                    
+                    {/* Coluna 2: Status */}
                     <td style={{ width: columnWidths[1] }} className="py-3 px-5 whitespace-nowrap overflow-hidden">
                       <span className={`px-2.5 py-1 border text-[9px] font-black uppercase tracking-tight inline-block ${getStatusClass(m.status)}`}>
                         {m.status}
                       </span>
                     </td>
+                    
+                    {/* Coluna 3: CIA */}
                     <td style={{ width: columnWidths[2] }} className="py-3 px-5 text-[10px] font-black text-slate-600 uppercase tracking-tighter whitespace-nowrap overflow-hidden text-ellipsis">{m.cia}</td>
+                    
+                    {/* Coluna 4: Puxado */}
                     <td style={{ width: columnWidths[3] }} className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
                       {formatDisplayDate(m.dataHoraPuxado)}
                     </td>
+                    
+                    {/* Coluna 5: Recebido */}
                     <td style={{ width: columnWidths[4] }} className="py-3 px-5 text-[10px] font-bold text-slate-500 font-mono-tech tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
                       {formatDisplayDate(m.dataHoraRecebido)}
                     </td>
+                    
+                    {/* Coluna 6: Repr CIA */}
                     <td 
                       style={{ width: columnWidths[5] }}
                       onClick={() => !isHistory && canFillRepr && onOpenReprFill(m.id)}
@@ -131,11 +149,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         {!isHistory && canFillRepr && !hasReprDate && <Edit size={10} className="text-indigo-400 animate-pulse" />}
                       </div>
                     </td>
-                    <td style={{ width: columnWidths[6] }} className={`py-3 px-5 text-[10px] font-bold font-mono-tech tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${m.status === 'Manifesto Entregue' ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      {formatDisplayDate(m.dataHoraEntregue)}
+                    
+                    {/* Coluna 7: Entregue (Apenas Histórico) */}
+                    {isHistory && (
+                      <td style={{ width: columnWidths[6] }} className="py-3 px-5 text-[10px] font-bold font-mono-tech tracking-tight whitespace-nowrap overflow-hidden text-ellipsis text-emerald-600">
+                        {formatDisplayDate(m.dataHoraEntregue)}
+                      </td>
+                    )}
+
+                    {/* Coluna 8/7: Turno */}
+                    <td style={{ width: columnWidths[isHistory ? 7 : 6] }} className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis">
+                      {m.turno}
                     </td>
-                    <td style={{ width: columnWidths[7] }} className="py-3 px-5 text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis">{m.turno}</td>
-                    <td style={{ width: columnWidths[8] }} className="py-3 px-5 text-right">
+
+                    {/* Coluna 9/8: Ação */}
+                    <td style={{ width: columnWidths[isHistory ? 8 : 7] }} className="py-3 px-5 text-right">
                       <button 
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
@@ -198,25 +226,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* BASE DE DADOS ATIVA */}
+      {/* BASE DE DADOS ATIVA - SEM COLUNA ENTREGUE */}
       <div className="bg-white border-2 border-slate-200 panel-shadow overflow-hidden">
-        <div className="bg-slate-50 px-5 py-3 border-b-2 border-slate-200 flex items-center justify-between">
+        <div className="bg-[#0f172a] px-5 py-3 border-b-2 border-slate-900 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] flex items-center gap-2">
-              <Database size={14} className="text-slate-500" /> Base de Dados Operacional
+            <h3 className="text-[10px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-2">
+              <Database size={14} className="text-indigo-400" /> Base de Dados Operacional
             </h3>
-            <div className="h-4 w-[1px] bg-slate-300" />
+            <div className="h-4 w-[1px] bg-slate-700" />
             <div className="flex items-center gap-1.5">
               <Filter size={12} className="text-slate-400" />
               <span className="text-[9px] font-bold text-slate-400 uppercase">Filtros: Em Andamento</span>
             </div>
           </div>
-          <span className="text-[9px] font-bold text-slate-400 uppercase">Monitorando: {manifestosEmAndamento.length} Itens</span>
+          <span className="text-[9px] font-bold text-slate-500 uppercase">Monitorando: {manifestosEmAndamento.length} Itens</span>
         </div>
-        {renderTable(manifestosEmAndamento)}
+        {renderTable(manifestosEmAndamento, false)}
       </div>
 
-      {/* ARQUIVO / HISTÓRICO CONCLUÍDO */}
+      {/* ARQUIVO / HISTÓRICO CONCLUÍDO - COM COLUNA ENTREGUE */}
       <div className="bg-white border-2 border-slate-200 panel-shadow overflow-hidden">
         <button 
           onClick={() => setShowHistory(!showHistory)}
@@ -246,7 +274,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <button onClick={() => { openHistory(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Search size={14} className="text-slate-400"/> Detalhes / Log</button>
               
-              {/* Ocultar botões de ação se o item já estiver concluído/cancelado */}
               {!historicoManifestos.find(hm => hm.id === menuOpenId) && (
                 <>
                   <button 
