@@ -14,11 +14,9 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
     if (!dateStr || dateStr === '---' || dateStr === '') return null;
     
     try {
-      // 1. Tenta converter direto (Funciona para ISO: 2024-05-24T...)
       const directDate = new Date(dateStr);
       if (!isNaN(directDate.getTime())) return directDate;
 
-      // 2. Fallback para formato Brasileiro manual (DD/MM/YYYY HH:MM)
       const parts = dateStr.split(/[\/\s,:]+/);
       if (parts.length >= 5) {
         const day = parseInt(parts[0], 10);
@@ -87,7 +85,7 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
     };
   }, [manifestos]);
 
-  // 3. VOLUME HORA A HORA (Computa os dados baseados na data processada)
+  // 3. VOLUME HORA A HORA
   const hourlyStats = useMemo(() => {
     const hours: Record<number, number> = {};
     for (let i = 0; i < 24; i++) hours[i] = 0;
@@ -108,9 +106,9 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
   }, [hourlyStats]);
 
   return (
-    <div className="flex flex-col gap-4 animate-fadeIn max-h-[calc(100vh-100px)] overflow-hidden">
+    <div className="flex flex-col gap-4 animate-fadeIn h-[calc(100vh-140px)] overflow-hidden">
       
-      {/* HEADER COMPACTO */}
+      {/* HEADER FIXO */}
       <div className="bg-[#0f172a] border-2 border-slate-800 p-3 flex items-center justify-between shadow-lg shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-indigo-500 rounded">
@@ -127,9 +125,8 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
         </div>
       </div>
 
+      {/* GRID DE CARDS SUPERIORES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 shrink-0">
-        
-        {/* OPERADOR CADASTRO */}
         <div className="bg-white border-2 border-slate-200 shadow-sm flex flex-col overflow-hidden">
           <div className="p-2 border-b bg-slate-50 flex items-center gap-2">
              <Award size={14} className="text-indigo-600" />
@@ -157,7 +154,6 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
           </div>
         </div>
 
-        {/* OPERADOR ATRIBUÍDO */}
         <div className="bg-white border-2 border-slate-200 shadow-sm flex flex-col overflow-hidden">
           <div className="p-2 border-b bg-slate-50 flex items-center gap-2">
              <Target size={14} className="text-emerald-600" />
@@ -185,7 +181,6 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
           </div>
         </div>
 
-        {/* SLA METRICS */}
         <div className="bg-slate-900 border-2 border-slate-800 shadow-sm text-white flex flex-col justify-center p-4 space-y-4">
            <div className="flex items-center justify-between border-l-2 border-blue-500 pl-3">
               <div>
@@ -211,36 +206,36 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
         </div>
       </div>
 
-      {/* GRÁFICO HORÁRIO COMPACTO - CORREÇÃO DE OVERFLOW */}
-      <div className="bg-white border-2 border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1">
-        <div className="p-2.5 border-b bg-slate-50 flex items-center justify-between shrink-0">
+      {/* GRÁFICO DE FLUXO - POSICIONADO NA PARTE INFERIOR (FLEX-1) */}
+      <div className="bg-white border-2 border-slate-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+        <div className="p-3 border-b bg-slate-50 flex items-center justify-between shrink-0">
            <div className="flex items-center gap-2">
               <TrendingUp size={14} className="text-slate-600" />
-              <h3 className="text-[9px] font-black text-slate-800 uppercase tracking-[0.2em]">Fluxo de Recebimento Horário</h3>
+              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em]">Fluxo de Recebimento Horário</h3>
            </div>
-           <span className="text-[8px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 uppercase">
+           <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 uppercase">
              {manifestos.length} Manifestos Computados
            </span>
         </div>
         
-        {/* CONTAINER COM PADDING SUPERIOR EXTRA PARA AS LABELS */}
-        <div className="flex-1 flex flex-col justify-center p-6 px-10 min-h-0 pt-10">
-           <div className="h-40 flex items-end gap-1 px-2 relative border-b-2 border-slate-100 w-full">
+        {/* ÁREA DO GRÁFICO COM ESPAÇO DE SEGURANÇA SUPERIOR (PT-12) */}
+        <div className="flex-1 flex flex-col justify-end p-6 px-10 min-h-0 pt-12">
+           <div className="flex-1 max-h-[220px] flex items-end gap-1 px-2 relative border-b-2 border-slate-100 w-full">
               {hourlyStats.map(h => (
                 <div key={h.hour} className="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
                    {h.count > 0 && (
-                      <div className="absolute top-[-24px] left-1/2 -translate-x-1/2 flex flex-col items-center transition-all">
-                         <span className="text-[10px] font-black text-slate-900 font-mono-tech">{h.count}</span>
+                      <div className="absolute top-[-26px] left-1/2 -translate-x-1/2 flex flex-col items-center transition-all z-10">
+                         <span className="text-[11px] font-black text-slate-900 font-mono-tech bg-white px-1">{h.count}</span>
                       </div>
                    )}
-                   {/* LIMITAMOS A ALTURA MÁXIMA PARA 85% PARA NUNCA TOCAR O TOPO DO CONTAINER */}
+                   {/* ESCALA DE 70% PARA GARANTIR QUE NUNCA TOQUE O TOPO DO CARD */}
                    <div 
                       className={`w-full max-w-[28px] transition-all duration-700 ease-out rounded-t-sm shadow-sm ${
                         h.count > 0 ? 'bg-indigo-500 hover:bg-indigo-600' : 'bg-slate-50'
                       }`}
-                      style={{ height: `${(h.count / maxHourlyCount) * 85}%` }}
+                      style={{ height: `${(h.count / maxHourlyCount) * 70}%` }}
                    ></div>
-                   <span className={`text-[8px] font-black font-mono leading-none mt-2 ${h.count > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
+                   <span className={`text-[9px] font-black font-mono leading-none mt-2 ${h.count > 0 ? 'text-indigo-600' : 'text-slate-400'}`}>
                       {String(h.hour).padStart(2, '0')}
                    </span>
                 </div>
@@ -248,19 +243,19 @@ export const EfficiencyDashboard: React.FC<EfficiencyDashboardProps> = ({ manife
            </div>
         </div>
 
-        <div className="p-2 bg-slate-50 border-t flex items-center justify-between px-6 shrink-0">
-           <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                 <div className="w-2 h-2 bg-indigo-500 rounded-sm"></div>
-                 <span className="text-[8px] font-black text-slate-500 uppercase">Volume Operacional</span>
+        <div className="p-3 bg-slate-50 border-t flex items-center justify-between px-6 shrink-0">
+           <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                 <div className="w-2.5 h-2.5 bg-indigo-500 rounded-sm"></div>
+                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-tight">Volume Operacional</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                 <div className="w-2 h-2 bg-slate-100 rounded-sm border border-slate-200"></div>
-                 <span className="text-[8px] font-black text-slate-400 uppercase">Sem Registro</span>
+              <div className="flex items-center gap-2">
+                 <div className="w-2.5 h-2.5 bg-slate-100 rounded-sm border border-slate-200"></div>
+                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Sem Registro</span>
               </div>
            </div>
-           <p className="text-[8px] font-bold text-slate-400 uppercase italic">
-              Escala de pico em tempo real: {maxHourlyCount} manifestos/h.
+           <p className="text-[9px] font-bold text-slate-400 uppercase italic tracking-tighter">
+              Amostra baseada em pico diário de {maxHourlyCount} manifestos/h.
            </p>
         </div>
       </div>
