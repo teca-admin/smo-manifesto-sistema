@@ -3,13 +3,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { OperationalDashboard } from './components/OperationalDashboard';
 import { KanbanBoard } from './components/KanbanBoard';
+import { EfficiencyDashboard } from './components/EfficiencyDashboard';
 import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AssignResponsibilityModal, ReprFillModal } from './components/Modals';
 import { Manifesto, User, SMO_Sistema_DB } from './types';
 import { supabase } from './supabaseClient';
-import { LayoutGrid, Plane, LogOut, Terminal, Activity, ShieldCheck, Columns } from 'lucide-react';
+import { LayoutGrid, Plane, LogOut, Terminal, Activity, ShieldCheck, Columns, BarChart3 } from 'lucide-react';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'sistema' | 'operacional' | 'fluxo'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'operacional' | 'fluxo' | 'eficiencia'>('sistema');
   const [manifestos, setManifestos] = useState<Manifesto[]>([]);
   const [nextId, setNextId] = useState<string>('Automático');
   
@@ -95,7 +96,6 @@ function App() {
   }, [fetchManifestos, fetchNextId]);
 
   const updateStatus = async (id: string, status: string, fields: any = {}, operatorName?: string) => {
-    // BLOQUEIO DE SEGURANÇA: Entrega sem assinatura do representante
     if (status === 'Manifesto Entregue') {
       const target = manifestos.find(m => m.id === id);
       const signature = target?.dataHoraRepresentanteCIA || fields?.Representante_CIA;
@@ -207,7 +207,7 @@ function App() {
     <div className="min-h-screen flex flex-col bg-[#f8fafc] custom-scrollbar">
       <header className="bg-[#0f172a] text-white border-b-2 border-slate-800 shadow-2xl shrink-0">
         <div className="flex items-center justify-between h-16 px-8">
-          <div className="flex items-center gap-6 h-full">
+          <div className="flex items-center gap-4 h-full">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-indigo-600">
                 <Terminal size={18} className="text-white" />
@@ -220,24 +220,31 @@ function App() {
             <nav className="flex h-full">
               <button 
                 onClick={() => setActiveTab('sistema')} 
-                className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'sistema' ? 'border-indigo-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
+                className={`group flex items-center gap-2 px-5 h-16 text-[9px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'sistema' ? 'border-indigo-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
-                <LayoutGrid size={14} className={activeTab === 'sistema' ? 'text-indigo-400' : 'text-slate-500'} />
-                CADASTRO DO MANIFESTO
+                <LayoutGrid size={13} className={activeTab === 'sistema' ? 'text-indigo-400' : 'text-slate-500'} />
+                CADASTRO
               </button>
               <button 
                 onClick={() => setActiveTab('operacional')} 
-                className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'operacional' ? 'border-red-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
+                className={`group flex items-center gap-2 px-5 h-16 text-[9px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'operacional' ? 'border-red-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
-                <Plane size={14} className={activeTab === 'operacional' ? 'text-red-400' : 'text-slate-500'} />
-                PUXE DO MANIFESTO
+                <Plane size={13} className={activeTab === 'operacional' ? 'text-red-400' : 'text-slate-500'} />
+                PUXE
               </button>
               <button 
                 onClick={() => setActiveTab('fluxo')} 
-                className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'fluxo' ? 'border-emerald-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
+                className={`group flex items-center gap-2 px-5 h-16 text-[9px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'fluxo' ? 'border-emerald-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
-                <Columns size={14} className={activeTab === 'fluxo' ? 'text-emerald-400' : 'text-slate-500'} />
-                Fluxo do Manifesto
+                <Columns size={13} className={activeTab === 'fluxo' ? 'text-emerald-400' : 'text-slate-500'} />
+                FLUXO
+              </button>
+              <button 
+                onClick={() => setActiveTab('eficiencia')} 
+                className={`group flex items-center gap-2 px-5 h-16 text-[9px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'eficiencia' ? 'border-indigo-400 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
+              >
+                <BarChart3 size={13} className={activeTab === 'eficiencia' ? 'text-indigo-300' : 'text-slate-500'} />
+                EFICIÊNCIA
               </button>
             </nav>
           </div>
@@ -305,8 +312,10 @@ function App() {
               }} 
               onOpenAssign={setAssignId => setAssigningId(setAssignId)}
             />
-          ) : (
+          ) : activeTab === 'fluxo' ? (
             <KanbanBoard manifestos={manifestos} />
+          ) : (
+            <EfficiencyDashboard manifestos={manifestos} />
           )}
         </div>
       </main>
