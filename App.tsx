@@ -21,7 +21,6 @@ function App() {
   const [loadingMsg, setLoadingMsg] = useState<string | null>(null);
   const [alert, setAlert] = useState<{type: 'success' | 'error', msg: string} | null>(null);
   
-  // Identificador de quem está operando (para Auditoria)
   const [activeOperatorName, setActiveOperatorName] = useState<string | null>(null);
 
   const getCurrentTimestampBR = () => new Date().toLocaleString('pt-BR');
@@ -96,6 +95,16 @@ function App() {
   }, [fetchManifestos, fetchNextId]);
 
   const updateStatus = async (id: string, status: string, fields: any = {}, operatorName?: string) => {
+    // BLOQUEIO DE SEGURANÇA: Entrega sem assinatura do representante
+    if (status === 'Manifesto Entregue') {
+      const target = manifestos.find(m => m.id === id);
+      const signature = target?.dataHoraRepresentanteCIA || fields?.Representante_CIA;
+      if (!signature || signature === '---' || signature === '') {
+        showAlert('error', 'BLOQUEIO: Assinatura Repr. CIA é obrigatória para entrega.');
+        return;
+      }
+    }
+
     setLoadingMsg("Processando...");
     try {
       const user = operatorName || activeOperatorName || "Sistema";
@@ -214,14 +223,14 @@ function App() {
                 className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'sistema' ? 'border-indigo-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
                 <LayoutGrid size={14} className={activeTab === 'sistema' ? 'text-indigo-400' : 'text-slate-500'} />
-                Cadastro
+                CADASTRO DO MANIFESTO
               </button>
               <button 
                 onClick={() => setActiveTab('operacional')} 
                 className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'operacional' ? 'border-red-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
                 <Plane size={14} className={activeTab === 'operacional' ? 'text-red-400' : 'text-slate-500'} />
-                Puxe
+                PUXE DO MANIFESTO
               </button>
               <button 
                 onClick={() => setActiveTab('fluxo')} 

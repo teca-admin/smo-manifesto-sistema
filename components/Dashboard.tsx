@@ -22,8 +22,12 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ 
   manifestos, onSave, onAction, openHistory, openEdit, onOpenReprFill, onShowAlert, onOperatorChange
 }) => {
-  // Login State
-  const [activeProfile, setActiveProfile] = useState<UserType | null>(null);
+  // Login State com Persistência
+  const [activeProfile, setActiveProfile] = useState<UserType | null>(() => {
+    const saved = localStorage.getItem('smo_active_profile');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
   const [loginId, setLoginId] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -39,10 +43,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [showHistory, setShowHistory] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('');
 
-  // Sincroniza o operador ativo com o componente pai para Auditoria
+  // Sincroniza o operador ativo com o componente pai e com o localStorage
   useEffect(() => {
     if (onOperatorChange) {
       onOperatorChange(activeProfile ? activeProfile.Nome_Completo : null);
+    }
+    if (activeProfile) {
+      localStorage.setItem('smo_active_profile', JSON.stringify(activeProfile));
+    } else {
+      localStorage.removeItem('smo_active_profile');
     }
   }, [activeProfile, onOperatorChange]);
 
@@ -77,19 +86,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setActiveProfile(null);
     setLoginId('');
     setLoginPass('');
+    localStorage.removeItem('smo_active_profile');
   };
 
   const handleOpenMenu = (e: React.MouseEvent, id: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const menuSafeHeight = 300; // Aumentado para 300px para garantir folga da barra de tarefas
+    const menuSafeHeight = 300; 
     const viewportHeight = window.innerHeight;
     
-    // Se o espaço embaixo for menor que 300px, abre para cima
     const spaceBelow = viewportHeight - rect.bottom;
     const shouldOpenUpward = spaceBelow < menuSafeHeight;
     
     setMenuPos({ 
-      // Reposiciona o ponto âncora com margem de segurança
       top: shouldOpenUpward ? rect.top - 12 : rect.bottom + 12, 
       left: Math.max(12, rect.left - 180),
       openUpward: shouldOpenUpward
@@ -97,12 +105,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setMenuOpenId(id);
   };
 
-  // FILTRO: Apenas manifestos em andamento (Base Ativa)
   const manifestosEmAndamento = manifestos.filter(m => 
     m.status !== 'Manifesto Entregue' && m.status !== 'Manifesto Cancelado'
   );
 
-  // FILTRO E LIMITAÇÃO: Arquivo (Últimos 100 com busca global)
   const allHistory = manifestos.filter(m => 
     m.status === 'Manifesto Entregue' || m.status === 'Manifesto Cancelado'
   );
@@ -154,7 +160,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  // TELA DE LOGIN
   if (!activeProfile) {
     return (
       <div className="flex items-center justify-center min-h-[70vh] animate-fadeIn p-4">
@@ -281,7 +286,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </tr>
             ) : (
               data.map(m => {
-                const canFillRepr = m.status === 'Manifesto Finalizado';
+                const canFillRepr = m.status === 'Manifesto Finalizado' || m.status === 'Manifesto Recebido' || m.status === 'Manifesto Iniciado';
                 const hasReprDate = m.dataHoraRepresentanteCIA && m.dataHoraRepresentanteCIA !== '---' && m.dataHoraRepresentanteCIA !== '';
 
                 return (
@@ -463,7 +468,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {menuOpenId && createPortal(
          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpenId(null)}>
             <div 
-               className="fixed bg-white border-2 border-slate-800 shadow-2xl min-w-[220px] py-1.5 animate-fadeIn"
+               className="fixed bg-white border-2 border-slate-800 shadow-2xl min-w-[240px] py-1.5 animate-fadeIn"
                style={{ 
                   top: `${menuPos.top}px`, 
                   left: `${menuPos.left}px`,
@@ -476,13 +481,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <button onClick={() => { openHistory(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Search size={14} className="text-slate-400"/> Detalhes / Log</button>
               
-              {!allHistory.find(hm => hm.id === menuOpenId) && (
-                <>
-                  <button onClick={() => { onAction('entregar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest transition-colors"><CheckSquare size={14} className="text-emerald-400"/> ENTREGAR MANIFESTO</button>
-                  <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Edit3 size={14} className="text-indigo-400"/> Editar Registro</button>
-                  <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest transition-colors"><XCircle size={14} className="text-red-400"/> Cancelar Item</button>
-                </>
-              )}
+              {(() => {
+                const targetM = manifestos.find(m => m.id === menuOpenId);
+                const isHistoryItem = allHistory.some(hm => hm.id === menuOpenId);
+                const hasSignature = targetM?.dataHoraRepresentanteCIA && targetM.dataHoraRepresentanteCIA !== '---' && targetM.dataHoraRepresentanteCIA !== '';
+                
+                if (isHistoryItem) return null;
+
+                return (
+                  <>
+                    {hasSignature ? (
+                      <button onClick={() => { onAction('entregar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-widest transition-colors"><CheckSquare size={14} className="text-emerald-400"/> ENTREGAR MANIFESTO</button>
+                    ) : (
+                      <div className="flex items-center gap-3 w-full px-4 py-2.5 text-left text-slate-300 text-[10px] font-black uppercase tracking-widest cursor-not-allowed group relative">
+                        <Lock size={14} className="text-slate-200"/> 
+                        <span>Entregar (Bloqueado)</span>
+                        <div className="absolute left-full top-0 ml-2 w-32 bg-slate-800 text-white p-2 rounded text-[8px] normal-case opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          Requer Assinatura Repr. CIA para liberar a entrega.
+                        </div>
+                      </div>
+                    )}
+                    
+                    <button onClick={() => { openEdit(menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-slate-50 text-slate-700 text-[10px] font-black uppercase tracking-widest transition-colors"><Edit3 size={14} className="text-indigo-400"/> Editar Registro</button>
+                    <button onClick={() => { onAction('cancelar', menuOpenId); setMenuOpenId(null); }} className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest transition-colors"><XCircle size={14} className="text-red-400"/> Cancelar Item</button>
+                  </>
+                );
+              })()}
             </div>
          </div>,
          document.body
