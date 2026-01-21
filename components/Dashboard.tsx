@@ -28,7 +28,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   });
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('');
 
   // FILTRO: Apenas manifestos em andamento (Base Ativa)
