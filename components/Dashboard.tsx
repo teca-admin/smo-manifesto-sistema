@@ -382,7 +382,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Puxado</label>
-              <CustomSelect value={formData.dataHoraPuxado} onChange={v => setFormData({...formData, dataHoraPuxado: v})} />
+              <CustomDateTimePicker value={formData.dataHoraPuxado} onChange={v => setFormData({...formData, dataHoraPuxado: v})} />
             </div>
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manifesto Recebido</label>
