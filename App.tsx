@@ -2,13 +2,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dashboard } from './components/Dashboard';
 import { OperationalDashboard } from './components/OperationalDashboard';
+import { KanbanBoard } from './components/KanbanBoard';
 import { EditModal, LoadingOverlay, HistoryModal, AlertToast, CancellationModal, AssignResponsibilityModal, ReprFillModal } from './components/Modals';
 import { Manifesto, User, SMO_Sistema_DB } from './types';
 import { supabase } from './supabaseClient';
-import { LayoutGrid, Plane, LogOut, Terminal, Activity, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Plane, LogOut, Terminal, Activity, ShieldCheck, Columns } from 'lucide-react';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'sistema' | 'operacional'>('sistema');
+  const [activeTab, setActiveTab] = useState<'sistema' | 'operacional' | 'fluxo'>('sistema');
   const [manifestos, setManifestos] = useState<Manifesto[]>([]);
   const [nextId, setNextId] = useState<string>('Automático');
   
@@ -195,7 +196,7 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc] custom-scrollbar">
-      <header className="bg-[#0f172a] text-white border-b-2 border-slate-800 shadow-2xl">
+      <header className="bg-[#0f172a] text-white border-b-2 border-slate-800 shadow-2xl shrink-0">
         <div className="flex items-center justify-between h-16 px-8">
           <div className="flex items-center gap-6 h-full">
             <div className="flex items-center gap-2">
@@ -213,14 +214,21 @@ function App() {
                 className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'sistema' ? 'border-indigo-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
                 <LayoutGrid size={14} className={activeTab === 'sistema' ? 'text-indigo-400' : 'text-slate-500'} />
-                Cadastro de Manifesto
+                Cadastro
               </button>
               <button 
                 onClick={() => setActiveTab('operacional')} 
                 className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'operacional' ? 'border-red-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
               >
                 <Plane size={14} className={activeTab === 'operacional' ? 'text-red-400' : 'text-slate-500'} />
-                Puxe de Manifesto
+                Puxe
+              </button>
+              <button 
+                onClick={() => setActiveTab('fluxo')} 
+                className={`group flex items-center gap-2 px-6 h-16 text-[10px] font-black uppercase tracking-widest transition-all border-b-4 ${activeTab === 'fluxo' ? 'border-emerald-500 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30'}`}
+              >
+                <Columns size={14} className={activeTab === 'fluxo' ? 'text-emerald-400' : 'text-slate-500'} />
+                Fluxo do Manifesto
               </button>
             </nav>
           </div>
@@ -280,7 +288,7 @@ function App() {
               nextId={nextId}
               onOperatorChange={setActiveOperatorName}
             />
-          ) : (
+          ) : activeTab === 'operacional' ? (
             <OperationalDashboard 
               manifestos={manifestos} 
               onAction={(id, status, fields, operatorName) => {
@@ -288,6 +296,8 @@ function App() {
               }} 
               onOpenAssign={setAssignId => setAssigningId(setAssignId)}
             />
+          ) : (
+            <KanbanBoard manifestos={manifestos} />
           )}
         </div>
       </main>

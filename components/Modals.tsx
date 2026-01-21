@@ -35,8 +35,9 @@ export const EditModal: React.FC<EditModalProps> = ({ data, onClose, onSave }) =
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-      <div className="bg-white w-full max-w-xl border-2 border-slate-900 shadow-2xl flex flex-col">
+    // AJUSTADO: items-start + pt-[5vh] para modais grandes
+    <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-start justify-center p-4 pt-[5vh] animate-fadeIn backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white w-full max-w-xl border-2 border-slate-900 shadow-2xl flex flex-col mb-10">
         <div className="bg-slate-900 text-white p-4 text-[11px] font-black uppercase tracking-widest flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
              <ClipboardEdit size={16} className="text-indigo-400" />
@@ -104,7 +105,9 @@ export const ReprFillModal: React.FC<{
   const [date, setDate] = useState(manifesto.dataHoraRepresentanteCIA || '');
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+    // AJUSTADO: items-start + pt-[15vh] para modais médios. 
+    // Garante que o calendário tenha espaço total para abrir para baixo.
+    <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-start justify-center p-4 pt-[15vh] animate-fadeIn backdrop-blur-sm">
       <div className="bg-white w-full max-w-sm border-2 border-slate-900 shadow-2xl flex flex-col">
         <div className="bg-[#0f172a] text-white p-3 text-[10px] font-black uppercase tracking-widest flex justify-between items-center">
           <span className="flex items-center gap-2"><Clock size={14} /> REPR. CIA - {manifesto.id}</span>
@@ -190,7 +193,8 @@ export const AssignResponsibilityModal: React.FC<{
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+    // AJUSTADO: items-start + pt-[10vh]
+    <div className="fixed inset-0 bg-slate-900/80 z-[10000] flex items-start justify-center p-4 pt-[10vh] animate-fadeIn backdrop-blur-sm">
       <div className="bg-white w-full max-w-md border-2 border-slate-900 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.45)] flex flex-col relative">
         <div className="bg-slate-900 text-white p-5 flex items-center justify-between z-10">
           <div className="flex items-center gap-4">
@@ -359,8 +363,9 @@ export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = 
   ];
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
-      <div className="bg-white w-full max-w-4xl border-2 border-slate-900 shadow-2xl flex flex-col max-h-[95vh]">
+    // AJUSTADO: items-start + pt-[2vh] para relatórios gigantes
+    <div className="fixed inset-0 bg-slate-900/60 z-[10000] flex items-start justify-center p-4 pt-[2vh] animate-fadeIn backdrop-blur-sm">
+      <div className="bg-white w-full max-w-4xl border-2 border-slate-900 shadow-2xl flex flex-col max-h-[95vh] mb-4">
         {/* HEADER */}
         <div className="bg-[#0f172a] text-white p-5 flex items-center justify-between border-b-2 border-slate-800 shrink-0">
           <div className="flex items-center gap-4">
@@ -489,7 +494,7 @@ export const HistoryModal: React.FC<{ data: Manifesto, onClose: () => void }> = 
 };
 
 export const CancellationModal: React.FC<{ onConfirm: () => void, onClose: () => void }> = ({ onConfirm, onClose }) => (
-  // AJUSTE: items-start + pt-[15vh] para garantir que o modal nasça no topo da tela e não seja cortado pela barra de tarefas
+  // AJUSTADO: pt-[15vh]
   <div className="fixed inset-0 bg-black/60 z-[10000] flex items-start justify-center p-4 pt-[15vh] animate-fadeIn">
     <div className="bg-white w-full max-w-xs border-t-4 border-red-600 shadow-2xl p-6 flex flex-col items-center">
       <div className="p-3 bg-red-100 text-red-600 rounded-full mb-4">
