@@ -135,15 +135,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ manifestos }) => {
                     </div>
 
                     <div className="pt-2 border-t border-slate-50 flex items-center justify-between">
-                       <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-black text-slate-500">
+                       <div className="flex items-center gap-2 max-w-[70%]">
+                          <div className="w-5 h-5 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-black text-slate-500 shrink-0">
                              {m.usuarioResponsavel ? m.usuarioResponsavel.charAt(0) : '?'}
                           </div>
-                          <span className="text-[10px] font-black text-slate-400 uppercase truncate max-w-[80px]">
-                             {m.usuarioResponsavel ? m.usuarioResponsavel.split(' ')[0] : 'Vago'}
+                          <span className="text-[10px] font-black text-slate-400 uppercase truncate">
+                             {m.usuarioResponsavel || 'Vago'}
                           </span>
                        </div>
-                       <div className="flex items-center gap-1 text-[11px] font-black text-indigo-500">
+                       <div className="flex items-center gap-1 text-[11px] font-black text-indigo-500 shrink-0">
                           <Clock size={12} />
                           <span>{getTimeOnly(m.carimboDataHR)}</span>
                        </div>
